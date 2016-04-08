@@ -12,7 +12,7 @@ extern "C" {
 #include "lcd.h"
 #include "schedule.h"
 #include "link.h"
-#include "usb.h"
+#include "usb/usb.h"
 #include "interrupt.h"
 #include "misc.h"
 #include "keypad.h"
