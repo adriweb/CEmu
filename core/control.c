@@ -4,6 +4,7 @@
 #include "asic.h"
 #include "emu.h"
 #include "debug/debug.h"
+#include "usb/usb.h"
 
 /* Global CONTROL state */
 control_state_t control;
@@ -32,8 +33,12 @@ static uint8_t control_read(const uint16_t pio, bool peek) {
             break;
         case 0x0F:
             value = control.ports[index];
-            if (control.USBBusPowered)    { value |= 0x80; }
-            if (control.USBSelfPowered) { value |= 0x40; }
+            if (usb.regs.hcor.data[8] & 1) {
+                value |= 0x80;
+            }
+            if (usb.regs.otgcsr & 0x80000) {
+                value |= 0x40;
+            }
             break;
         case 0x1D: case 0x1E: case 0x1F:
             value = read8(control.privileged, (index - 0x1D) << 3);

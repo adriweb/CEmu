@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "../apb.h"
+#include "../port.h"
 #include "fotg210.h"
 
 /* Standard USB state */
