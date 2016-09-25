@@ -21,7 +21,7 @@ eZ80portrange_t init_usb(void);
 void usb_reset(void);
 
 /* Save/Restore */
-typedef struct emu_image emu_image;
+#include "../emu.h"
 bool usb_restore(const emu_image*);
 bool usb_save(emu_image*);
 
