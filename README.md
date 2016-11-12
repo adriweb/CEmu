@@ -40,6 +40,7 @@ Windows | macOS | Linux
 * Variable list with preview and program launcher
 * Misc. emulation (backlight, battery...)
 * "Autotester" (automated unit testing, light scripting)
+* Scripting through Lua (WIP)
 
 ## Downloads
 No stable binaries yet as the code keeps changing these days! When available, they'll be here, though: https://github.com/CE-Programming/CEmu/releases  
@@ -69,5 +70,5 @@ _Take a look at [the current issues](https://github.com/CE-Programming/CEmu/issu
 
 ## License
 CEmu is licensed under the [GPLv3](LICENSE).  
-_Acknowledgements_: Some CEmu parts are, directly, modified, or inspired, from [z80e](https://github.com/KnightOS/z80e), [Firebird](https://github.com/nspire-emus/firebird), [QHexEdit2](https://github.com/Simsys/qhexedit2), [libtifiles](https://github.com/debrouxl/tilibs), [tivars_lib_cpp](https://github.com/adriweb/tivars_lib_cpp), [Gifsicle](https://github.com/kohler/gifsicle), and the [Silk iconset](http://www.famfamfam.com/lab/icons/silk/).  
+_Acknowledgements_: Some CEmu parts are, directly, modified, or inspired, from [z80e](https://github.com/KnightOS/z80e), [Firebird](https://github.com/nspire-emus/firebird), [QHexEdit2](https://github.com/Simsys/qhexedit2), [libtifiles](https://github.com/debrouxl/tilibs), [tivars_lib_cpp](https://github.com/adriweb/tivars_lib_cpp), [Gifsicle](https://github.com/kohler/gifsicle), [Sol](https://github.com/ThePhD/sol2), and the [Silk iconset](http://www.famfamfam.com/lab/icons/silk/).  
 The complete licensing information is available in the [LICENSE](LICENSE) file.

@@ -23,7 +23,7 @@ TEMPLATE = app
 # Localization
 TRANSLATIONS += i18n/fr_FR.ts i18n/es_ES.ts i18n/nl_NL.ts
 
-CONFIG += c++11 console
+CONFIG += c++14 console
 
 # Core options
 DEFINES += DEBUG_SUPPORT
@@ -35,6 +35,11 @@ CONFIG(release, debug|release) {
     #This is a debug build
     GLOBAL_FLAGS += -g3
 }
+
+# temp things for testing lua.
+# This will eventually have to be done properly (luajit -> call external build)
+GLOBAL_FLAGS += -I/usr/local/Cellar/lua/5.2.4_4/include/
+LIBS += -L/usr/local/Cellar/lua/5.2.4_4/lib/ -llua
 
 # GCC/clang flags
 if (!win32-msvc*) {
@@ -181,6 +186,7 @@ HEADERS  +=  utils.h \
     tivarslib/utils_tivarslib.h \
     tivarslib/TypeHandlers/TypeHandlerFuncGetter.h \
     tivarslib/TypeHandlers/TypeHandlers.h \
+    lua/sol.hpp \
     ../../tests/autotester/autotester.h \
     ../../core/asic.h \
     ../../core/cpu.h \
