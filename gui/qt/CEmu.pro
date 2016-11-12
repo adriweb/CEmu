@@ -1,5 +1,9 @@
+# Warn if Qt isn't as updated as it should be
 lessThan(QT_MAJOR_VERSION, 5) : error("You need at least Qt 5.6 to build CEmu!")
 lessThan(QT_MINOR_VERSION, 6) : error("You need at least Qt 5.6 to build CEmu!")
+
+# Warn if git submodules not downloaded
+!exists("lua/lua/src/lua.h"): error("You have to run 'git submodule init' and 'git submodule update' first.")
 
 # CEmu version
 if (0) { # GitHub release/deployment build. Has to correspond to the git tag.
@@ -23,6 +27,7 @@ TEMPLATE = app
 # Localization
 TRANSLATIONS += i18n/fr_FR.ts i18n/es_ES.ts i18n/nl_NL.ts
 
+# We use C++11, but Sol also uses C++14.
 CONFIG += c++14 console
 
 # Core options
@@ -36,10 +41,8 @@ CONFIG(release, debug|release) {
     GLOBAL_FLAGS += -g3
 }
 
-# temp things for testing lua.
-# This will eventually have to be done properly (luajit -> call external build)
-GLOBAL_FLAGS += -I/usr/local/Cellar/lua/5.2.4_4/include/
-LIBS += -L/usr/local/Cellar/lua/5.2.4_4/lib/ -llua
+# TODO Lua: adjust options by platforms, see Makefile
+
 
 # GCC/clang flags
 if (!win32-msvc*) {
@@ -86,6 +89,15 @@ SOURCES +=  utils.cpp \
     dockwidget.cpp \
     searchwidget.cpp \
     basiccodeviewerwindow.cpp \
+    sendinghandler.cpp \
+    debugger.cpp \
+    hexeditor.cpp \
+    settings.cpp \
+    ipc.cpp \
+    keyhistory.cpp \
+    memoryvisualizer.cpp \
+    luascripting.cpp \
+    luaeditor.cpp \
     keypad/qtkeypadbridge.cpp \
     keypad/keymap.cpp \
     keypad/keypadwidget.cpp \
@@ -95,6 +107,12 @@ SOURCES +=  utils.cpp \
     qhexedit/commands.cpp \
     qhexedit/qhexedit.cpp \
     capture/gif.cpp \
+    capture/optimize.c \
+    capture/opttemplate.c \
+    capture/gifread.c \
+    capture/gifwrite.c \
+    capture/quantize.c \
+    capture/giffunc.c \
     tivarslib/utils_tivarslib.cpp \
     tivarslib/TypeHandlers/DummyHandler.cpp \
     tivarslib/TypeHandlers/TH_0x00.cpp \
@@ -111,6 +129,39 @@ SOURCES +=  utils.cpp \
     tivarslib/TypeHandlers/TH_0x20.cpp \
     tivarslib/TypeHandlers/TH_0x21.cpp \
     ../../tests/autotester/autotester.cpp \
+    lua/lua/src/lapi.c \
+    lua/lua/src/lauxlib.c \
+    lua/lua/src/lbaselib.c \
+    lua/lua/src/lbitlib.c \
+    lua/lua/src/lcode.c \
+    lua/lua/src/lcorolib.c \
+    lua/lua/src/lctype.c \
+    lua/lua/src/ldblib.c \
+    lua/lua/src/ldebug.c \
+    lua/lua/src/ldo.c \
+    lua/lua/src/ldump.c \
+    lua/lua/src/lfunc.c \
+    lua/lua/src/lgc.c \
+    lua/lua/src/linit.c \
+    lua/lua/src/liolib.c \
+    lua/lua/src/llex.c \
+    lua/lua/src/lmathlib.c \
+    lua/lua/src/lmem.c \
+    lua/lua/src/loadlib.c \
+    lua/lua/src/lobject.c \
+    lua/lua/src/lopcodes.c \
+    lua/lua/src/loslib.c \
+    lua/lua/src/lparser.c \
+    lua/lua/src/lstate.c \
+    lua/lua/src/lstring.c \
+    lua/lua/src/lstrlib.c \
+    lua/lua/src/ltable.c \
+    lua/lua/src/ltablib.c \
+    lua/lua/src/ltm.c \
+    lua/lua/src/lundump.c \
+    lua/lua/src/lutf8lib.c \
+    lua/lua/src/lvm.c \
+    lua/lua/src/lzio.c \
     ../../core/asic.c \
     ../../core/cpu.c \
     ../../core/keypad.c \
@@ -134,21 +185,8 @@ SOURCES +=  utils.cpp \
     ../../core/emu.c \
     ../../core/extras.c \
     ../../core/debug/disasm.cpp \
-    sendinghandler.cpp \
-    capture/optimize.c \
-    capture/gifread.c \
-    capture/gifwrite.c \
-    capture/giffunc.c \
-    debugger.cpp \
-    hexeditor.cpp \
-    settings.cpp \
-    ../../core/debug/stepping.cpp \
-    ipc.cpp \
-    keyhistory.cpp \
-    capture/opttemplate.c \
-    capture/quantize.c \
-    memoryvisualizer.cpp \
-    ../../core/debug/debug.cpp
+    ../../core/debug/debug.cpp \
+    ../../core/debug/stepping.cpp
 
 linux|macx: SOURCES += ../../core/os/os-linux.c
 win32: SOURCES += ../../core/os/os-win32.c win32-console.cpp
@@ -163,6 +201,12 @@ HEADERS  +=  utils.h \
     datawidget.h \
     dockwidget.h \
     searchwidget.h \
+    cemuopts.h \
+    sendinghandler.h \
+    debugger.h \
+    ipc.h \
+    keyhistory.h \
+    memoryvisualizer.h \
     basiccodeviewerwindow.h \
     keypad/qtkeypadbridge.h \
     keypad/keymap.h \
@@ -177,17 +221,47 @@ HEADERS  +=  utils.h \
     keypad/numkey.h \
     keypad/operkey.h \
     keypad/arrowkey.h \
+    keypad/keycode.h \
     qhexedit/chunks.h \
     qhexedit/commands.h \
     qhexedit/qhexedit.h \
     capture/gif.h \
     capture/giflib.h \
+    capture/kcolor.h \
+    capture/gifsicle.h \
+    capture/lcdfgif/gif.h \
     tivarslib/autoloader.h \
     tivarslib/utils_tivarslib.h \
     tivarslib/TypeHandlers/TypeHandlerFuncGetter.h \
     tivarslib/TypeHandlers/TypeHandlers.h \
-    lua/sol.hpp \
     ../../tests/autotester/autotester.h \
+    lua/lua/src/lapi.h \
+    lua/lua/src/lauxlib.h \
+    lua/lua/src/lcode.h \
+    lua/lua/src/lctype.h \
+    lua/lua/src/ldebug.h \
+    lua/lua/src/ldo.h \
+    lua/lua/src/lfunc.h \
+    lua/lua/src/lgc.h \
+    lua/lua/src/llex.h \
+    lua/lua/src/llimits.h \
+    lua/lua/src/lmem.h \
+    lua/lua/src/lobject.h \
+    lua/lua/src/lopcodes.h \
+    lua/lua/src/lparser.h \
+    lua/lua/src/lprefix.h \
+    lua/lua/src/lstate.h \
+    lua/lua/src/lstring.h \
+    lua/lua/src/ltable.h \
+    lua/lua/src/ltm.h \
+    lua/lua/src/lua.h \
+    lua/lua/src/luaconf.h \
+    lua/lua/src/lualib.h \
+    lua/lua/src/lundump.h \
+    lua/lua/src/lvm.h \
+    lua/lua/src/lzio.h \
+    lua/lua/src/lua.hpp \
+    lua/sol.hpp \
     ../../core/asic.h \
     ../../core/cpu.h \
     ../../core/defines.h \
@@ -215,17 +289,7 @@ HEADERS  +=  utils.h \
     ../../core/os/os.h \
     ../../core/debug/debug.h \
     ../../core/debug/disasm.h \
-    ../../core/debug/stepping.h \
-    cemuopts.h \
-    sendinghandler.h \
-    capture/gifsicle.h \
-    capture/lcdfgif/gif.h \
-    keypad/keycode.h \
-    debugger.h \
-    ipc.h \
-    keyhistory.h \
-    capture/kcolor.h \
-    memoryvisualizer.h
+    ../../core/debug/stepping.h
 
 FORMS    += mainwindow.ui \
     romselection.ui \
