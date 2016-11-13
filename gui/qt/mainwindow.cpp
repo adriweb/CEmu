@@ -282,6 +282,16 @@ MainWindow::MainWindow(CEmuOpts cliOpts, QWidget *p) : QMainWindow(p), ui(new Ui
     connect(stepNextShortcut, &QShortcut::activated, this, &MainWindow::stepNextPressed);
     connect(stepOutShortcut, &QShortcut::activated, this, &MainWindow::stepOutPressed);
 
+    // Lua
+    connect(ui->buttonRunLuaScript, &QPushButton::clicked, this, &MainWindow::runLuaScript);
+    connect(ui->buttonLoadLuaScript, &QPushButton::clicked, this, &MainWindow::loadLuaScript);
+    connect(ui->buttonSaveLuaScript, &QPushButton::clicked, this, &MainWindow::saveLuaScript);
+    initLuaThings();
+
+    // Meta Types
+    qRegisterMetaType<uint32_t>("uint32_t");
+    qRegisterMetaType<std::string>("std::string");
+
     ui->portView->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     ui->breakpointView->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     ui->watchpointView->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
@@ -1836,4 +1846,37 @@ void MainWindow::ipcSpawnRandom() {
 
     QProcess *myProcess = new QProcess(this);
     myProcess->startDetached(execPath, arguments);
+}
+
+// ------------------------------------------------
+// Lua things
+// ------------------------------------------------
+
+void MainWindow::initLuaThings() {
+    static bool isInited = false;
+    if (!isInited) {
+        lua.set_panic( [](lua_State* L) {
+            const char* message = lua_tostring(L, -1);
+            if (message) {
+                lua_pop(L, 1);
+                fprintf(stderr, "[Lua Panic] %s", message);
+            }
+            return -1;
+        });
+
+        lua.open_libraries(sol::lib::base, sol::lib::package);
+
+        isInited = true;
+    }
+}
+
+void MainWindow::loadLuaScript() {
+
+}
+
+void MainWindow::saveLuaScript() {
+
+}
+
+void MainWindow::runLuaScript() {
 }
