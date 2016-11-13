@@ -65,6 +65,8 @@ if (!win32-msvc*) {
 if (macx|linux) {
     # Be more secure by default...
     GLOBAL_FLAGS    += -fPIE -Wstack-protector -fstack-protector-strong --param=ssp-buffer-size=1
+    # Lua can do better things in this case
+    GLOBAL_FLAGS    += -DLUA_USE_POSIX
     # Use ASAN on debug builds. Watch out about ODR crashes when built with -flto. detect_odr_violation=0 as an env var may help.
     CONFIG(debug, debug|release): GLOBAL_FLAGS += -fsanitize=address,bounds -fsanitize-undefined-trap-on-error -O0
 }
