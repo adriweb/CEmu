@@ -20,6 +20,7 @@ enum sched_item_index {
     SCHED_TIMER2,
     SCHED_TIMER3,
     SCHED_WATCHDOG,
+    SCHED_USB,
     SCHED_NUM_ITEMS
 };
 
