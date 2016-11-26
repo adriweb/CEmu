@@ -29,16 +29,10 @@ static uint8_t control_read(const uint16_t pio, bool peek) {
             break;
         case 0x0B:
             /* bit 2 set if charging */
-            value = control.ports[index] | (control.batteryCharging == true)<<1;
+            value = control.ports[index] | control.batteryCharging << 1;
             break;
         case 0x0F:
-            value = control.ports[index];
-            if (usb.regs.hcor.portsc[0] & 1) {
-                value |= 0x80;
-            }
-            if (usb.regs.otgcsr & 0x80000) {
-                value |= 0x40;
-            }
+            value = control.ports[index] | usb_status();
             break;
         case 0x1D: case 0x1E: case 0x1F:
             value = read8(control.privileged, (index - 0x1D) << 3);
@@ -197,6 +191,7 @@ eZ80portrange_t init_control(void) {
     control.privileged = 0xFFFFFF;
     control.protectedStart = control.protectedEnd = 0xD1887C;
     control.protectionStatus = 0;
+    control.ports[0xF] = 0x2;
 
     return device;
 }
