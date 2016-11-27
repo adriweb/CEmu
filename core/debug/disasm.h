@@ -20,6 +20,8 @@ typedef struct {
 
 extern disasm_highlights_state_t disasmHighlight;
 
+void debugInstruction(void);
+
 #ifdef __cplusplus
 }
 

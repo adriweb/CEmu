@@ -2,6 +2,8 @@
 #include "../emu.h"
 #include "../schedule.h"
 #include "../interrupt.h"
+#include "../debug/debug.h"
+#include "../debug/disasm.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -74,9 +76,14 @@ static void usb_setup(uint8_t *setup) {
     usb_grp0_int(GISR0_CXSETUP);
 }
 
+//static uint8_t ep0_init[] = { 0x80, 0x06, 0x00, 0x01, 0x00, 0x00, 0x40, 0x00 };
+//static uint8_t ep0_init[] = { 0x80, 0x06, 0x02, 0x02, 0x00, 0x00, 0x40, 0x00 };
+//static uint8_t ep0_init[] = { 0x80, 0x06, 0x03, 0x03, 0x09, 0x04, 0x40, 0x00 };
+//static uint8_t ep0_init[] = { 0x00, 0x05, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
 static void usb_event(int event) {
     static uint8_t set_addr[] = { 0x00, 0x05, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00 };
     static uint8_t set_config[] = { 0x00, 0x09, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    static uint8_t test_packet[] = { 0x05, 0x23, 0x68, 0x00, 0x00 };
     switch (usb.state) {
         case 0: // plug
             if (!usb.regs.otgisr) {
@@ -102,6 +109,16 @@ static void usb_event(int event) {
                 usb.state++;
             }
             break;
+        case 4: // packet test
+            if (!(usb.regs.gisr0 & GISR0_CXSETUP)) {
+                usb.data = test_packet;
+                usb.len = sizeof test_packet;
+                usb.regs.cxfifo &= ~CXFIFO_FIFOE_FIFO0;
+                usb.regs.fifocsr[0] = usb.len;
+                usb_grp1_int(GISR1_SPK_FIFO(0));
+                usb.state++;
+            }
+            break;
         default: // ready
             return;
     }
@@ -120,6 +137,12 @@ static uint8_t usb_read(uint16_t pio, bool peek) {
     } else if (pio < (peek ? 0x1d8 : 0x1d4)) {
         value = usb.ep0_data[peek ? (usb.ep0_idx & 4) ^ (pio & 7) : (usb.ep0_idx++ & 4) | (pio & 3)];
     }
+    if (pio != 0x82) {
+        fprintf(stderr, "%06x: %3hx -> %02hhx\n", cpu.registers.PC, pio, value);
+        //if (pio == 0x88 || pio == 0x89)
+        //    fprintf(stderr, "\tahl = %02hhx%04hx\n", cpu.registers.A, cpu.registers.HLs);
+        debugInstruction();
+    }
     return value;
 }
 
@@ -127,6 +150,7 @@ static void usb_write(uint16_t pio, uint8_t value, bool poke) {
     uint8_t index = pio >> 2;
     uint8_t bit_offset = (pio & 3) << 3;
     (void)poke;
+    fprintf(stderr, "%06x: %3hx <- %02hhx\n", cpu.registers.PC, pio, value);
     switch (index) {
         case 0x010 >> 2: // USBCMD - USB Command Register
             write8(usb.regs.hcor.usbcmd, bit_offset, value &   0xFF0BFF >> bit_offset); // W mask (V or RO)
@@ -373,7 +397,7 @@ bool usb_save(emu_image *s) {
 
 bool usb_restore(const emu_image *s) {
     usb = s->usb;
-    usb_init_hccr(); // hccor is read only
+    usb_init_hccr(); // hccr is read only
     // these bits are raz
     usb.regs.hcor.periodiclistbase &= 0xFFFFF000;
     usb.regs.hcor.asynclistaddr    &= 0xFFFFFFE0;
