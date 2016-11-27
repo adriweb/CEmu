@@ -210,6 +210,7 @@ HEADERS  +=  utils.h \
     keyhistory.h \
     memoryvisualizer.h \
     basiccodeviewerwindow.h \
+    luaeditor.h \
     keypad/qtkeypadbridge.h \
     keypad/keymap.h \
     keypad/keypadwidget.h \
