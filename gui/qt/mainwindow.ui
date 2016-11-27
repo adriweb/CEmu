@@ -67,7 +67,7 @@
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>3</number>
+       <number>9</number>
       </property>
       <property name="elideMode">
        <enum>Qt::ElideLeft</enum>
@@ -683,7 +683,7 @@
               </widget>
              </item>
              <item>
-              <spacer name="horizontalSpacer_24">
+              <spacer name="horizontalSpacer_24_">
                <property name="orientation">
                 <enum>Qt::Horizontal</enum>
                </property>
@@ -2182,7 +2182,7 @@ QPushButton:pressed {
            </widget>
           </item>
           <item>
-           <spacer name="horizontalSpacer_23">
+           <spacer name="horizontalSpacer_23_">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
             </property>
@@ -3505,7 +3505,7 @@ QPushButton:pressed {
                 </widget>
                </item>
                <item row="3" column="0" colspan="2">
-                <layout class="QHBoxLayout" name="horizontalLayout_18">
+                <layout class="QHBoxLayout" name="horizontalLayout_18_">
                  <item>
                   <widget class="QLabel" name="labelBrightness">
                    <property name="palette">
@@ -7516,63 +7516,150 @@ QPushButton:pressed {
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_26">
         <item>
-         <widget class="LuaEditor" name="luaScriptEditor">
-          <property name="font">
-           <font>
-            <family>Courier</family>
-           </font>
+         <widget class="QTabWidget" name="LuaTabs">
+          <property name="currentIndex">
+           <number>0</number>
           </property>
-          <property name="plainText">
-           <string>---------------------------------------------------------------
+          <widget class="QWidget" name="LuaEditorTab">
+           <attribute name="title">
+            <string>Editor</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="verticalLayout_18_lua">
+            <item>
+             <widget class="LuaEditor" name="luaScriptEditor">
+              <property name="font">
+               <font>
+                <family>Courier</family>
+               </font>
+              </property>
+              <property name="plainText">
+               <string>---------------------------------------------------------------
 -- Some useful local vars, also providing REPL compatibility --
-local R = cpu.registers
-local F = cpu.registers.flags
+local R, F = cpu.registers, cpu.registers.flags
 ---------------------------------------------------------------
 
 </string>
-          </property>
-          <property name="backgroundVisible">
-           <bool>false</bool>
-          </property>
+              </property>
+              <property name="backgroundVisible">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_lua">
+              <item>
+               <widget class="QPushButton" name="buttonLoadLuaScript">
+                <property name="text">
+                 <string>Load...</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="buttonSaveLuaScript">
+                <property name="text">
+                 <string>Save...</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_23">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="buttonRunLuaScript">
+                <property name="text">
+                 <string>Run</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="LuaREPLTab">
+           <attribute name="title">
+            <string>REPL</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="verticalLayoutREPL">
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_lua_26">
+              <item>
+               <widget class="QPushButton" name="clearREPLConsole">
+                <property name="text">
+                 <string>Clear console</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer_24">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="resetREPLLuaState">
+                <property name="text">
+                 <string>Reset Lua state</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <widget class="QPlainTextEdit" name="REPLConsole">
+              <property name="font">
+               <font>
+                <family>Droid Sans Mono</family>
+               </font>
+              </property>
+              <property name="undoRedoEnabled">
+               <bool>false</bool>
+              </property>
+              <property name="lineWrapMode">
+               <enum>QPlainTextEdit::NoWrap</enum>
+              </property>
+              <property name="readOnly">
+               <bool>true</bool>
+              </property>
+              <property name="plainText">
+               <string/>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="REPLInput">
+              <property name="enabled">
+               <bool>true</bool>
+              </property>
+              <property name="font">
+               <font>
+                <family>Droid Sans Mono</family>
+               </font>
+              </property>
+              <property name="placeholderText">
+               <string>Type Lua commands here</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
          </widget>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout_lua">
-          <item>
-           <widget class="QPushButton" name="buttonLoadLuaScript">
-            <property name="text">
-             <string>Load...</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="buttonSaveLuaScript">
-            <property name="text">
-             <string>Save...</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="horizontalSpacer_23">
-            <property name="orientation">
-             <enum>Qt::Horizontal</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-          <item>
-           <widget class="QPushButton" name="buttonRunLuaScript">
-            <property name="text">
-             <string>Run</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
         </item>
        </layout>
       </widget>
@@ -8080,7 +8167,7 @@ local F = cpu.registers.flags
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1004</width>
+     <width>1148</width>
      <height>22</height>
     </rect>
    </property>

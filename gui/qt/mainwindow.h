@@ -383,10 +383,11 @@ private:
     void ipcHandleCommandlineReceive(QDataStream &);
 
     // Lua
-    void initLuaThings();
+    void initLuaThings(sol::state &lua, bool isREPL);
     void loadLuaScript();
     void saveLuaScript();
     void runLuaScript();
+    void LuaREPLeval();
 
 #ifdef _WIN32
     // Win32 Console Toggle
@@ -462,6 +463,9 @@ private:
     // for drag and drop of rom files
     bool isSendingROM = false;
     QString dragROM;
+
+    sol::state ed_lua;
+    sol::state repl_lua;
 
     bool initPassed = true;
     bool enabledSoftCommands;
