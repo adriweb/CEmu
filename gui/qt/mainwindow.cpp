@@ -33,7 +33,6 @@
 
 #include "../../tests/autotester/crc32.hpp"
 #include "../../tests/autotester/autotester.h"
-#include "../../tests/autotester/autotester.h"
 
 MainWindow::MainWindow(CEmuOpts cliOpts, QWidget *p) : QMainWindow(p), ui(new Ui::MainWindow), opts(cliOpts) {
 
@@ -1231,6 +1230,12 @@ void MainWindow::resendContextMenu(const QPoint& posa) {
 // ------------------------------------------------
 // Autotester things
 // ------------------------------------------------
+
+void MainWindow::pressKeyFromName(const std::string& key)
+{
+    autotester::pressKeyFromName(key);
+    autotester::stepCallback();
+}
 
 void MainWindow::dispAutotesterError(int errCode) {
     QString errMsg;

@@ -4,6 +4,9 @@
 #include <QtWidgets/QMessageBox>
 #include <QtCore/QFile>
 
+#include <thread>
+#include <chrono>
+
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
@@ -69,12 +72,6 @@ void MainWindow::initLuaThings(sol::state& lua, bool isREPL) {
         });
     }
 
-    lua.set_function("mem_peek_byte",  [](uint32_t addr) { return mem_peek_byte(addr); });
-    lua.set_function("mem_peek_short", [](uint32_t addr) { return mem_peek_short(addr); });
-    lua.set_function("mem_peek_long",  [](uint32_t addr) { return mem_peek_long(addr); });
-    lua.set_function("mem_peek_word",  [](uint32_t addr, bool mode) { return mem_peek_word(addr, mode); });
-    lua.set_function("mem_poke_byte",  [](uint32_t addr, uint8_t val) { return mem_poke_byte(addr, val); });
-
     // Bind core stuff
     lua["cpu"] = std::cref(cpu);
 
@@ -111,7 +108,23 @@ void MainWindow::initLuaThings(sol::state& lua, bool isREPL) {
         "prefetch", sol::readonly(&eZ80cpu_t::prefetch)
     );
 
-    // TODO: bind devices and other stuff.
+    lua.create_named_table("mem",
+       "readByte",  mem_peek_byte,
+       "readShort", mem_peek_short,
+       "readLong",  mem_peek_long,
+       "readWord",  mem_peek_word,
+       "writeByte", mem_poke_byte
+    );
+
+    lua.set_function("pressKey",  [&](const std::string& key) { pressKeyFromName(key); });
+    lua.set_function("pressKeys", [&](const sol::variadic_args& keys) {
+        for (const std::string& key: keys) {
+            pressKeyFromName(key);
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+    });
+
+    // TODO: bind more stuff (all features that are accessible from the GUI should have a Lua equivalent)
 
     if (isREPL) {
         lua.script("R, F = cpu.registers, cpu.registers.flags");
