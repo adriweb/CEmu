@@ -3,14 +3,21 @@
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtWidgets/QMessageBox>
 #include <QtCore/QFile>
+#include <QtCore/QDateTime>
 
 #include <thread>
 #include <chrono>
+#include <tuple>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+#include "sendinghandler.h"
+#include "debugger.h"
+
 #include "../../core/cpu.h"
+#include "../../core/link.h"
+
 
 void MainWindow::initLuaThings(sol::state& lua, bool isREPL) {
 
@@ -123,6 +130,69 @@ void MainWindow::initLuaThings(sol::state& lua, bool isREPL) {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
     });
+
+    lua.create_named_table("gui",
+       "screenshot", sol::as_function([&](std::string p = "") -> int {
+           QString path = QString::fromStdString(p);
+           if (path.length() == 0) {
+               path = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation) + QDir::separator();
+           }
+           if (!path.endsWith(".png")) {
+               if (!path.endsWith(QDir::separator())) {
+                   path += QDir::separator();
+               }
+               const QString now = QDateTime::currentDateTime().toString("hhmmss-MMddyy");
+               path += QStringLiteral("CEmu_screenshot_") + now + QStringLiteral(".png");
+           }
+           return !(renderFramebuffer(&lcd).save(path, "PNG", 0));
+       }),
+       "refresh",    sol::as_function([](){ QApplication::processEvents(); }),
+       "messageBox", sol::as_function([&](const std::string& t, const std::string& msg) {
+           QMessageBox::information(this, QString::fromStdString("[Lua] " + t), QString::fromStdString(msg));
+       }),
+       "setKeypadColor", sol::as_function([&](unsigned c){ setKeypadColor(c); })
+
+       // todo: see mainwindow.h -> Settings
+    );
+
+    lua.create_named_table("emu",
+       "reset",     sol::as_function([&](){ resetCalculator(); }),
+       "reloadROM", sol::as_function([&](){ reloadROM(); }),
+       "throttle",  sol::as_function([&](bool t){ setThrottle(t ? Qt::Checked : Qt::Unchecked); }),
+       "setSpeed",  sol::as_function([&](int s){ s /= 10; setEmuSpeed(s<0 ? 0 : (s>50 ? 50 : s)); }),
+       "sendFile",  sol::as_function([&](const std::string& path) {
+           sendingHandler->sendFiles(QStringList(QString::fromStdString(path)), LINK_FILE);
+       })
+
+        // todo: getFile
+    );
+
+    lua.create_named_table("debug",
+       "stop",      sol::as_function([&](){ if (!inDebugger) { debuggerChangeState(); } }),
+       "resume",    sol::as_function([&](){ if (inDebugger)  { debuggerChangeState(); } }),
+       "stepIn",    sol::as_function([&](){ stepInPressed(); }),
+       "stepOver",  sol::as_function([&](){ stepOverPressed(); }),
+       "stepNext",  sol::as_function([&](){ stepNextPressed(); }),
+       "stepOut",   sol::as_function([&](){ stepOutPressed(); }),
+       "disasm",    sol::as_function([&](uint32_t addr) -> auto {
+           disasm.baseAddress = disasm.newAddress = addr & 0xFFFFFF;
+           disassembleInstruction();
+           lua["debug"]["disasm_newaddr"] = disasm.newAddress;
+           const auto& ins = disasm.instruction;
+           return std::make_tuple(ins.opcode, ins.modeSuffix, ins.arguments);
+       })
+
+       // todo: equates, breakpoints, watchpoints, port monitor stuff, etc.
+    );
+    lua.script("debug.disasmPC = function() return debug.disasm(cpu.registers.PC) end");
+
+    lua.create_named_table("autotester",
+       "loadJSON",   sol::as_function([&](const std::string& path) -> int { return openJSONConfig(QString::fromStdString(path)); }),
+       "reloadJSON", sol::as_function([&](){ reloadJSONConfig(); }),
+       "launchTest", sol::as_function([&](){ launchTest(); })
+
+      // todo: actually test this
+    );
 
     // TODO: bind more stuff (all features that are accessible from the GUI should have a Lua equivalent)
 
