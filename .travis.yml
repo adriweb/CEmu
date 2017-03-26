@@ -32,8 +32,8 @@ install:
 - which g++; ls -lh `which g++`; g++ --version; sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 50; sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 50; which g++; ls -lh `which g++`; g++ --version
 
 script:
-- if [[ -e cov-int/build-log.txt ]]; then echo "Coverity Build Log:"; cat cov-int/build-log.txt; else echo "No Coverity build log found."; fi
-- if [[ -e cov-int/scm_log.txt ]]; then echo "Coverity SCM Log:"; cat cov-int/scm_log.txt; else echo "No Coverity SCM log found."; fi
+- if [[ -e cov-int/build-log.txt ]]; then echo "Coverity Build Log: found"; else echo "No Coverity build log found."; fi
+- if [[ -e cov-int/scm_log.txt ]]; then echo "Coverity SCM Log: found"; else echo "No Coverity SCM log found."; fi
 - echo "Resulting cov-int directory:"; ls -lh cov-int
 
 notifications:
