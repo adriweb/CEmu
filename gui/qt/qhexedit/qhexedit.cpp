@@ -11,7 +11,7 @@ QHexEdit::QHexEdit(QWidget *par) : QAbstractScrollArea(par) {
     _chunks = new Chunks();
     _undoStack = new UndoStack(_chunks, this);
 
-#ifdef Q_OS_WIN32
+#ifdef Q_OS_WIN
     setFont(QFont("Courier", 10));
 #else
     setFont(QFont("Monospace", 10));
@@ -226,16 +226,36 @@ void QHexEdit::setBytesPerLine(int bytes) {
     ensureVisible();
 }
 
-qint64 QHexEdit::indexOf(const QByteArray &ba, qint64 from) {
-    qint64 posa = _chunks->indexOf(ba, from/2);
+qint64 QHexEdit::computePos(qint64 posa, int len) {
     if (posa > -1) {
+        len = len*2;
         qint64 curPos = posa*2;
-        setCursorPosition(curPos + ba.length()*2);
+        setCursorPosition(curPos + len);
         resetSelection(curPos);
-        setSelection(curPos + ba.length()*2);
+        setSelection(curPos + len);
         ensureVisible();
     }
     return posa;
+}
+
+qint64 QHexEdit::indexOf(const QByteArray &ba, qint64 from) {
+    qint64 posa = _chunks->indexOf(ba, from/2);
+    return computePos(posa, ba.length());
+}
+
+qint64 QHexEdit::indexPrevOf(const QByteArray &ba, qint64 to) {
+    qint64 posa = _chunks->indexPrevOf(ba, to/2);
+    return computePos(posa, ba.length());
+}
+
+qint64 QHexEdit::indexPrevNotOf(const QByteArray &ba, qint64 to) {
+    qint64 posa = _chunks->indexPrevNotOf(ba, to/2);
+    return computePos(posa, ba.length());
+}
+
+qint64 QHexEdit::indexNotOf(const QByteArray &ba, qint64 from) {
+    qint64 posa = _chunks->indexNotOf(ba, from/2);
+    return computePos(posa, ba.length());
 }
 
 bool QHexEdit::isModified() {
@@ -527,6 +547,7 @@ void QHexEdit::mousePressEvent(QMouseEvent *e) {
 
 void QHexEdit::paintEvent(QPaintEvent *e) {
     QPainter painter(viewport());
+    const QPalette *pal = &viewport()->palette();
 
     /* Process some useful calculations */
     int pxOfsX = horizontalScrollBar()->value();
@@ -534,14 +555,14 @@ void QHexEdit::paintEvent(QPaintEvent *e) {
 
     if (e->rect() != _cursorRect) {
         /* Draw some patterns if needed */
-        painter.fillRect(e->rect(), viewport()->palette().color(QPalette::Base));
+        painter.fillRect(e->rect(), pal->color(QPalette::Base));
         if (_asciiArea) {
             int linePos = _pxPosAsciiX;
             painter.setPen(Qt::gray);
             painter.drawLine(linePos - pxOfsX, e->rect().top(), linePos - pxOfsX, height());
         }
 
-        painter.setPen(viewport()->palette().color(QPalette::WindowText));
+        painter.setPen(pal->color(QPalette::WindowText));
 
         /* Paint address area */
         QString address;
@@ -554,7 +575,7 @@ void QHexEdit::paintEvent(QPaintEvent *e) {
         painter.drawLine(address_line, e->rect().top(), address_line, height());
 
         /* Paint hex and ASCII area */
-        QPen colStandard = QPen(viewport()->palette().color(QPalette::WindowText));
+        QPen colStandard = QPen(pal->color(QPalette::WindowText));
 
         painter.setBackgroundMode(Qt::TransparentMode);
 
@@ -564,7 +585,7 @@ void QHexEdit::paintEvent(QPaintEvent *e) {
             int pxPosAsciiX2 = _pxPosAsciiX - pxOfsX + _pxCharWidth/2;
             qint64 bPosLine = static_cast<qint64>(row) * static_cast<qint64>(bytesPerLine);
             for (int colIdx = 0; ((bPosLine + colIdx) < _dataShown.size() && (colIdx < bytesPerLine)); colIdx++) {
-                QColor c = viewport()->palette().color(QPalette::Base);
+                QColor c = pal->color(QPalette::Base);
                 painter.setPen(colStandard);
 
                 qint64 posBa = _bPosFirst + bPosLine + colIdx;
@@ -606,7 +627,7 @@ void QHexEdit::paintEvent(QPaintEvent *e) {
             }
         }
         painter.setBackgroundMode(Qt::TransparentMode);
-        painter.setPen(viewport()->palette().color(QPalette::WindowText));
+        painter.setPen(pal->color(QPalette::WindowText));
     }
 
     // paint cursor

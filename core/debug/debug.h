@@ -19,11 +19,14 @@ enum {
     DBG_USER,
     DBG_STEP,
     HIT_EXEC_BREAKPOINT,
-    HIT_READ_BREAKPOINT,
-    HIT_WRITE_BREAKPOINT,
+    HIT_READ_WATCHPOINT,
+    HIT_WRITE_WATCHPOINT,
     HIT_RUN_BREAKPOINT,
-    HIT_PORT_WRITE_BREAKPOINT,
-    HIT_PORT_READ_BREAKPOINT,
+    HIT_PORT_WRITE_WATCHPOINT,
+    HIT_PORT_READ_WATCHPOINT,
+    DBG_NMI_TRIGGERED,
+    DBG_WATCHDOG_TIMEOUT,
+    DBG_MISC_RESET,
     NUM_DBG_COMMANDS,
 };
 
@@ -60,6 +63,7 @@ typedef struct {        /* For debugging */
     int cpu_next;
     char *buffer;
     char *errBuffer;
+    bool resetOpensDebugger;
     uint32_t stepOverInstrSize;
     uint32_t stepOverExtendSize;
     uint8_t stepOverMode;

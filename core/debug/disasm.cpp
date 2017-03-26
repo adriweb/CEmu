@@ -85,11 +85,19 @@ static const std::string im_table[] = {
 };
 
 static std::string strW(uint32_t data) {
-    addressMap_t::const_iterator item = disasm.addressMap.find(data);
-    if (item != disasm.addressMap.end()) {
+    map_t::const_iterator item = disasm.map.find(data);
+    if (item != disasm.map.end()) {
         return item->second;
     }
-    sprintf(tmpbuf,"$%0*X", (disasm.il ? 6 : 4), data);
+    if (disasm.il) {
+        sprintf(tmpbuf,"$%06X", data);
+    } else {
+        item = disasm.map.find(cpu.registers.MBASE<<16|data);
+        if (item != disasm.map.end()) {
+            return item->second + " & $FFFF";
+        }
+        sprintf(tmpbuf,"$%04X", data);
+    }
     return std::string(tmpbuf);
 }
 
@@ -392,8 +400,8 @@ void disassembleInstruction(void) {
     disasm.iw = true;
     disasm.il = disasm.adl;
     disasm.l = disasm.adl;
-    disasm.prefix = false;
-    disasm.suffix = false;
+    disasm.prefix = 0;
+    disasm.suffix = 0;
 
     union {
         uint8_t opcode;

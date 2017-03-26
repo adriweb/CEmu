@@ -7,11 +7,12 @@ class OtherKey : public RectKey {
 public:
     OtherKey(KeyConfig &config, QString secondText, int right)
         : OtherKey{config, 13,
-               #ifdef Q_OS_MACX
-                   QStringLiteral("  ^"), secondText, QStringLiteral("H"), right, 0, 12} {
-               #else
-                   QStringLiteral("^"), secondText, QStringLiteral("H"), right, 0, 16} {
-               #endif
+#ifdef Q_OS_MACX
+    QStringLiteral("  ^ "),
+#else
+    QStringLiteral("^"),
+#endif
+        secondText, QStringLiteral("H"), right, 0, 12} {
         m_labelFont.setBold(false);
     }
     OtherKey(KeyConfig &config, int labelWidth,
@@ -26,7 +27,7 @@ public:
         : RectKey{config, {x - left, y - 9, left + 18 + right, 9}, {x, y, 18, 12},
                   {labelWidth, labelHeight}, 4, 4, 4, 4,
                   config.otherColor, config.textColor, labelText, secondText, alphaText,
-                  Qt::AlignHCenter | ((labelText == "^" || labelText == "  ^") ? Qt::AlignTop : Qt::AlignVCenter),
+                  Qt::AlignHCenter | (labelText.contains("^") ? Qt::AlignTop : Qt::AlignVCenter),
                   Qt::AlignVCenter | (alphaText.isNull() ? labelText == "on" ?
                   Qt::AlignRight : Qt::AlignHCenter : Qt::AlignLeft)} { }
 };

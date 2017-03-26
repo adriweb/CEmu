@@ -1,3 +1,4 @@
+#include <QtWidgets/QToolTip>
 #include <QtCore/QFileInfo>
 #include <QtCore/QRegularExpression>
 #include <QtNetwork/QNetworkAccessManager>
@@ -23,6 +24,34 @@
 
 #include "../../core/schedule.h"
 #include "../../core/link.h"
+
+// -----------------------------------------------
+// Debugger Init
+// -----------------------------------------------
+
+void MainWindow::debuggerInstall() {
+    ui->afregView->installEventFilter(this);
+    ui->hlregView->installEventFilter(this);
+    ui->bcregView->installEventFilter(this);
+    ui->deregView->installEventFilter(this);
+    ui->ixregView->installEventFilter(this);
+    ui->iyregView->installEventFilter(this);
+    ui->af_regView->installEventFilter(this);
+    ui->hl_regView->installEventFilter(this);
+    ui->bc_regView->installEventFilter(this);
+    ui->de_regView->installEventFilter(this);
+    ui->rregView->installEventFilter(this);
+    ui->hl->installEventFilter(this);
+    ui->bc->installEventFilter(this);
+    ui->de->installEventFilter(this);
+    ui->ix->installEventFilter(this);
+    ui->iy->installEventFilter(this);
+    ui->hl_->installEventFilter(this);
+    ui->bc_->installEventFilter(this);
+    ui->de_->installEventFilter(this);
+    ui->pc->installEventFilter(this);
+    ui->spl->installEventFilter(this);
+}
 
 // ------------------------------------------------
 // Main Debugger things
@@ -56,7 +85,12 @@ void MainWindow::debuggerImportFile(QString filename) {
 
     QSettings debugInfo(filename, QSettings::IniFormat);
     if (debugInfo.value(QStringLiteral("version")) != DBG_VERSION) {
-        QMessageBox::critical(this, tr("Invalid Version"), tr("This debugging information is incompatible with this version of CEmu"));
+        warnBox = new QMessageBox;
+        warnBox->setWindowTitle(tr("Invalid Version"));
+        warnBox->setText(tr("This debugging information is incompatible with this version of CEmu"));
+        warnBox->setWindowModality(Qt::ApplicationModal);
+        warnBox->setAttribute(Qt::WA_DeleteOnClose);
+        warnBox->show();
         return;
     }
 
@@ -75,8 +109,8 @@ void MainWindow::debuggerImportFile(QString filename) {
     QStringList watchpointREnabled = debugInfo.value(QStringLiteral("watchpoints/read")).toStringList();
     QStringList watchpointWEnabled = debugInfo.value(QStringLiteral("watchpoints/write")).toStringList();
     for (i = 0; i < watchpointLabel.size(); i++) {
-        unsigned mask = (watchpointREnabled.at(i) == "y" ? DBG_READ_WATCHPOINT : DBG_NO_HANDLE) |
-                        (watchpointWEnabled.at(i) == "y" ? DBG_WRITE_WATCHPOINT : DBG_NO_HANDLE);
+        unsigned int mask = (watchpointREnabled.at(i) == "y" ? DBG_READ_WATCHPOINT : DBG_NO_HANDLE) |
+                            (watchpointWEnabled.at(i) == "y" ? DBG_WRITE_WATCHPOINT : DBG_NO_HANDLE);
         watchpointAdd(watchpointLabel.at(i), hex2int(watchpointAddress.at(i)), hex2int(watchpointSize.at(i)), mask);
     }
 
@@ -86,10 +120,19 @@ void MainWindow::debuggerImportFile(QString filename) {
     QStringList portWEnabled = debugInfo.value(QStringLiteral("portmonitor/write")).toStringList();
     QStringList portFEnabled = debugInfo.value(QStringLiteral("portmonitor/freeze")).toStringList();
     for (i = 0; i < portAddress.size(); i++) {
-        unsigned mask = (portREnabled.at(i) == "y" ? DBG_PORT_READ : DBG_NO_HANDLE)  |
-                        (portWEnabled.at(i) == "y" ? DBG_PORT_WRITE : DBG_NO_HANDLE) |
-                        (portFEnabled.at(i) == "y" ? DBG_PORT_FREEZE : DBG_NO_HANDLE);
+        unsigned int mask = (portREnabled.at(i) == "y" ? DBG_PORT_READ : DBG_NO_HANDLE)  |
+                            (portWEnabled.at(i) == "y" ? DBG_PORT_WRITE : DBG_NO_HANDLE) |
+                            (portFEnabled.at(i) == "y" ? DBG_PORT_FREEZE : DBG_NO_HANDLE);
         portAdd(hex2int(portAddress.at(i)), mask);
+    }
+
+    // Add all the equate files and load them in
+    currentEquateFiles = debugInfo.value(QStringLiteral("equates/files")).toStringList();
+
+    disasm.map.clear();
+    disasm.reverseMap.clear();
+    for (QString file : currentEquateFiles) {
+        equatesAddFile(file);
     }
 }
 
@@ -155,6 +198,8 @@ void MainWindow::debuggerExportFile(QString filename) {
     debugInfo.setValue(QStringLiteral("portmonitor/write"), portWEnabled);
     debugInfo.setValue(QStringLiteral("portmonitor/freeze"), portFEnabled);
 
+    debugInfo.setValue(QStringLiteral("equates/files"), currentEquateFiles);
+
     // Make sure we write the settings
     debugInfo.sync();
 }
@@ -194,11 +239,11 @@ void MainWindow::debuggerExecuteCommand(uint32_t debugAddress, uint8_t command) 
         int tmp;
         switch (command) {
             case CMD_ABORT:
-                consoleStr(QStringLiteral("[CEmu] Program Aborted.\n"));
+                ui->debuggerLabel->setText(QStringLiteral("Program Aborted"));
                 debuggerRaise();
                 return; // don't exit the debugger
             case CMD_DEBUG:
-                consoleStr(QStringLiteral("[CEmu] Program Entered Debugger.\n"));
+                ui->debuggerLabel->setText(QStringLiteral("Program Entered Debugger"));
                 debuggerRaise();
                 return; // don't exit the debugger
             case CMD_SET_BREAKPOINT:
@@ -258,48 +303,57 @@ void MainWindow::debuggerProcessCommand(int reason, uint32_t input) {
     int row = 0;
 
     // This means the program is trying to send us a debug command. Let's see what we can do with that information
-    if (reason > NUM_DBG_COMMANDS) {
-       debuggerExecuteCommand(static_cast<uint32_t>(reason-DBG_PORT_RANGE), static_cast<uint8_t>(input));
-       return;
+    if (reason >= NUM_DBG_COMMANDS) {
+        if (enabledSoftCommands) {
+            debuggerExecuteCommand(static_cast<uint32_t>(reason-DBG_PORT_RANGE), static_cast<uint8_t>(input));
+        } else {
+            inDebugger = false;
+        }
+        return;
     }
 
-    // We hit a normal breakpoint; raise the correct entry in the port monitor table
-    if (reason == HIT_EXEC_BREAKPOINT) {
-        QString input3String = int2hex(input, 6);
+    QString inputString, type, text = QStringLiteral("");
 
-        // find the correct entry
-        while (ui->breakpointView->item(row++, BREAK_ADDR_LOC)->text() != input3String);
+    switch (reason) {
+        case HIT_EXEC_BREAKPOINT:
+            inputString = int2hex(input, 6);
 
-        ui->breakChangeLabel->setText(input3String);
-        ui->breakTypeLabel->setText(tr("Executed"));
-        ui->breakpointView->selectRow(row-1);
-    }
+            while (ui->breakpointView->item(row++, BREAK_ADDR_LOC)->text() != inputString);
 
-    else if (reason == HIT_READ_BREAKPOINT || reason == HIT_WRITE_BREAKPOINT) {
-        QString input3String = int2hex(input, 6);
+            text = tr("Hit breakpoint ") + inputString + QStringLiteral(" (") +
+                    ui->breakpointView->item(row-1, BREAK_LABEL_LOC)->text() + QStringLiteral(")");
+            break;
+        case HIT_READ_WATCHPOINT:
+        case HIT_WRITE_WATCHPOINT:
+            inputString = int2hex(input, 6);
+            type = (reason == HIT_READ_WATCHPOINT) ? tr("read") : tr("write");
+            text = tr("Hit ") + type + tr(" watchpoint ") + inputString;
 
-        // find the correct entry
-        while (ui->watchpointView->item(row++, BREAK_ADDR_LOC)->text() != input3String);
+            while (ui->watchpointView->item(row++, WATCH_ADDR_LOC)->text() != inputString);
 
-        ui->watchChangeLabel->setText(input3String);
-        ui->watchTypeLabel->setText((reason == HIT_READ_BREAKPOINT) ? tr("Read") : tr("Write"));
-        ui->watchpointView->selectRow(row-1);
-        memUpdate(input);
-    }
-
-    // We hit a port read or write; raise the correct entry in the port monitor table
-    else if (reason == HIT_PORT_READ_BREAKPOINT || reason == HIT_PORT_WRITE_BREAKPOINT) {
-        QString input2String = int2hex(input, 4);
-
-        // find the correct entry
-        while (ui->portView->item(row++, 0)->text() != input2String);
-
-        ui->portChangeLabel->setText(input2String);
-        ui->portTypeLabel->setText((reason == HIT_PORT_READ_BREAKPOINT) ? tr("Read") : tr("Write"));
-        ui->portView->selectRow(row-1);
+            text = tr("Hit ") + type + tr(" watchpoint ") + inputString + QStringLiteral(" (") +
+                    ui->watchpointView->item(row-1, WATCH_LABEL_LOC)->text() + QStringLiteral(")");
+            memUpdate(input);
+            break;
+        case HIT_PORT_READ_WATCHPOINT:
+        case HIT_PORT_WRITE_WATCHPOINT:
+            inputString = int2hex(input, 4);
+            type = (reason == HIT_READ_WATCHPOINT) ? tr("Read") : tr("Wrote");
+            text = type + tr(" port ") + inputString;
+            break;
+        case DBG_NMI_TRIGGERED:
+            text = tr("NMI triggered");
+            break;
+        case DBG_WATCHDOG_TIMEOUT:
+            text = tr("Watchdog timer caused reset");
+            break;
+        default:
+            debuggerRaise();
+            return;
     }
 
     // Checked everything, now we should raise the debugger
+    ui->debuggerLabel->setText(text);
     debuggerRaise();
 }
 
@@ -308,7 +362,7 @@ void MainWindow::debuggerUpdateChanges() {
         return;
     }
 
-    /* Update all the changes in the core */
+    // Update all the changes in the core
     cpu.registers.AF = static_cast<uint16_t>(hex2int(ui->afregView->text()));
     cpu.registers.HL = static_cast<uint32_t>(hex2int(ui->hlregView->text()));
     cpu.registers.DE = static_cast<uint32_t>(hex2int(ui->deregView->text()));
@@ -366,6 +420,8 @@ void MainWindow::debuggerUpdateChanges() {
     set_reset(ui->checkBEPO->isChecked(), 0x400, lcd.control);
     set_reset(ui->checkBEBO->isChecked(), 0x200, lcd.control);
     set_reset(ui->checkBGR->isChecked(), 0x100, lcd.control);
+
+    ui->debuggerLabel->clear();
 }
 
 void MainWindow::debuggerGUISetState(bool state) {
@@ -375,18 +431,9 @@ void MainWindow::debuggerGUISetState(bool state) {
     } else {
         ui->buttonRun->setText(tr("Stop"));
         ui->buttonRun->setIcon(stopIcon);
-        ui->portChangeLabel->clear();
-        ui->portTypeLabel->clear();
-        ui->breakChangeLabel->clear();
-        ui->breakTypeLabel->clear();
+        ui->debuggerLabel->clear();
         ui->opView->clear();
         ui->vatView->clear();
-        ui->portChangeLabel->clear();
-        ui->portTypeLabel->clear();
-        ui->breakChangeLabel->clear();
-        ui->breakTypeLabel->clear();
-        ui->watchChangeLabel->clear();
-        ui->watchTypeLabel->clear();
     }
     setReceiveState(false);
 
@@ -422,14 +469,23 @@ void MainWindow::debuggerChangeState() {
         return;
     }
 
+    bool previousState = inDebugger;
+
+    if (isReceiving || isSending) {
+        refreshVariableList();
+    }
+
     if (inDebugger) {
         debuggerGUIDisable();
         debuggerUpdateChanges();
-        if (isReceiving || isSending) {
-            refreshVariableList();
-        }
     }
+
     emit debuggerSendNewState(!inDebugger);
+
+    // wait for the signal to be processed
+    while (inDebugger == previousState) {
+        QApplication::processEvents();
+    }
 }
 
 void MainWindow::debuggerGUIPopulate() {
@@ -623,9 +679,22 @@ void MainWindow::breakpointDataChanged(QTableWidgetItem *item) {
     if (col == BREAK_ENABLE_LOC) {
         address = static_cast<uint32_t>(hex2int(ui->breakpointView->item(row, BREAK_ADDR_LOC)->text()));
         debug_breakwatch(address, DBG_EXEC_BREAKPOINT, item->checkState() == Qt::Checked);
+    } else if (col == BREAK_LABEL_LOC) {
+        updateLabels();
     } else if (col == BREAK_ADDR_LOC){
         std::string s = item->text().toUpper().toStdString();
-        unsigned mask;
+        QString equate;
+        unsigned int mask;
+
+        equate = getAddressEquate(s);
+        if (!equate.isEmpty()) {
+            s = equate.toStdString();
+            ui->breakpointView->blockSignals(true);
+            if (ui->breakpointView->item(row, BREAK_LABEL_LOC)->text() == (QStringLiteral("Label") + QString::number(row))) {
+                ui->breakpointView->item(row, BREAK_LABEL_LOC)->setText(item->text());
+            }
+            ui->breakpointView->blockSignals(false);
+        }
 
         if (s.find_first_not_of("0123456789ABCDEF") != std::string::npos || s.empty() || s.length() > 6) {
             item->setText(int2hex(prevBreakpointAddress, 6));
@@ -657,11 +726,11 @@ void MainWindow::breakpointDataChanged(QTableWidgetItem *item) {
 }
 
 QString MainWindow::breakpointNextLabel() {
-    return QStringLiteral("Label")+QString::number(ui->breakpointView->rowCount());
+    return QStringLiteral("Label") + QString::number(ui->breakpointView->rowCount());
 }
 
 QString MainWindow::watchpointNextLabel() {
-    return QStringLiteral("Label")+QString::number(ui->watchpointView->rowCount());
+    return QStringLiteral("Label") + QString::number(ui->watchpointView->rowCount());
 }
 
 void MainWindow::breakpointSlotAdd(void) {
@@ -678,9 +747,14 @@ void MainWindow::breakpointGUIAdd() {
         breakpointRemoveSelectedRow();
     }
 
+    int32_t base_address = disasm.base_address;
+    int32_t new_address = disasm.new_address;
+
     disasm.base_address = address;
     disasmHighlight.hit_exec_breakpoint = false;
     disassembleInstruction();
+    disasm.base_address = base_address;
+    disasm.new_address = new_address;
 
     c.movePosition(QTextCursor::StartOfLine, QTextCursor::MoveAnchor);
     c.setPosition(c.position()+9, QTextCursor::MoveAnchor);
@@ -769,7 +843,7 @@ void MainWindow::portSlotAdd(void) {
     portAdd(0, DBG_NO_HANDLE);
 }
 
-bool MainWindow::portAdd(uint16_t port, unsigned mask) {
+bool MainWindow::portAdd(uint16_t port, unsigned int mask) {
     const int currRow = ui->portView->rowCount();
     QString portStr = int2hex((port &= 0xFFFF), 4).toUpper();
     uint8_t data;
@@ -837,7 +911,7 @@ void MainWindow::portDataChanged(QTableWidgetItem *item) {
         debug_pmonitor_set(port, mask, item->checkState() == Qt::Checked);
     } else if (col == PORT_ADDR_LOC) {
         std::string s = item->text().toUpper().toStdString();
-        unsigned mask;
+        unsigned int mask;
 
         if (s.find_first_not_of("0123456789ABCDEF") != std::string::npos || s.empty() || s.length() > 4) {
             item->setText(int2hex(prevPortAddress, 4));
@@ -915,16 +989,16 @@ void MainWindow::watchpointRemoveAddress(uint32_t address) {
     }
 }
 
-void MainWindow::watchpointUpdate(int currRow) {
-    uint8_t i,size = ui->watchpointView->item(currRow, WATCH_SIZE_LOC)->text().toUInt();
-    uint32_t address = static_cast<uint32_t>(hex2int(ui->watchpointView->item(currRow, WATCH_ADDR_LOC)->text()));
+void MainWindow::watchpointUpdate(int row) {
+    uint8_t i,size = ui->watchpointView->item(row, WATCH_SIZE_LOC)->text().toUInt();
+    uint32_t address = static_cast<uint32_t>(hex2int(ui->watchpointView->item(row, WATCH_ADDR_LOC)->text()));
     uint32_t read = 0;
 
     for (i=0; i<size; i++) {
         read |= mem_peek_byte(address+i) << (i << 3);
     }
 
-    ui->watchpointView->item(currRow, WATCH_VALUE_LOC)->setText(int2hex(read, size << 1));
+    ui->watchpointView->item(row, WATCH_VALUE_LOC)->setText(int2hex(read, size << 1));
 }
 
 void MainWindow::watchpointReadGUIAdd() {
@@ -943,7 +1017,7 @@ void MainWindow::watchpointReadWriteGUIAdd() {
 }
 
 void MainWindow::watchpointGUIAdd() {
-    unsigned mask = watchpointGUIMask;
+    unsigned int mask = watchpointGUIMask;
     uint32_t address = static_cast<uint32_t>(hex2int(ui->disassemblyView->getSelectedAddress()));
 
     QTextCursor c = ui->disassemblyView->textCursor();
@@ -953,10 +1027,16 @@ void MainWindow::watchpointGUIAdd() {
         watchpointRemoveSelectedRow();
     }
 
+    int32_t base_address = disasm.base_address;
+    int32_t new_address = disasm.new_address;
+
     disasm.base_address = address;
     disasmHighlight.hit_read_watchpoint = false;
     disasmHighlight.hit_write_watchpoint = false;
     disassembleInstruction();
+
+    disasm.base_address = base_address;
+    disasm.new_address = new_address;
 
     c.movePosition(QTextCursor::StartOfLine, QTextCursor::MoveAnchor);
     c.setPosition(c.position()+7, QTextCursor::MoveAnchor);
@@ -985,7 +1065,7 @@ void MainWindow::watchpointSlotAdd(void) {
     watchpointAdd(watchpointNextLabel(), 0, 1, DBG_READ_WATCHPOINT | DBG_WRITE_WATCHPOINT);
 }
 
-bool MainWindow::watchpointAdd(QString label, uint32_t address, uint8_t len, unsigned mask) {
+bool MainWindow::watchpointAdd(QString label, uint32_t address, uint8_t len, unsigned int mask) {
     const int currRow = ui->watchpointView->rowCount();
     QString addressStr = int2hex((address &= 0xFFFFFF), 6).toUpper();
     QString watchLen;
@@ -1076,6 +1156,8 @@ void MainWindow::watchpointDataChanged(QTableWidgetItem *item) {
         ramUpdate();
         flashUpdate();
         memUpdate(address);
+    } else if (col == WATCH_LABEL_LOC) {
+        updateLabels();
     } else if (col == WATCH_SIZE_LOC) { // length of data we wish to read
         unsigned int data_length = item->text().toUInt();
         if (data_length > 4) {
@@ -1098,7 +1180,18 @@ void MainWindow::watchpointDataChanged(QTableWidgetItem *item) {
         debug_breakwatch(address, value, item->checkState() == Qt::Checked);
     } else if (col == WATCH_ADDR_LOC){
         std::string s = item->text().toUpper().toStdString();
-        unsigned mask;
+        QString equate;
+        unsigned int mask;
+
+        equate = getAddressEquate(s);
+        if (!equate.isEmpty()) {
+            s = equate.toStdString();
+            ui->watchpointView->blockSignals(true);
+            if (ui->watchpointView->item(row, WATCH_LABEL_LOC)->text() == (QStringLiteral("Label") + QString::number(row))) {
+                ui->watchpointView->item(row, WATCH_LABEL_LOC)->setText(item->text());
+            }
+            ui->watchpointView->blockSignals(false);
+        }
 
         if (s.find_first_not_of("0123456789ABCDEF") != std::string::npos || s.empty() || s.length() > 6) {
             item->setText(int2hex(prevWatchpointAddress, 6));
@@ -1106,7 +1199,7 @@ void MainWindow::watchpointDataChanged(QTableWidgetItem *item) {
             return;
         }
 
-        address = static_cast<uint32_t>(hex2int(item->text().toUpper()));
+        address = static_cast<uint32_t>(hex2int(QString::fromStdString(s)));
         newString = int2hex(address, 6);
 
         /* Return if address is already set */
@@ -1148,89 +1241,149 @@ void MainWindow::batteryChangeStatus(int value) {
 // ------------------------------------------------
 
 void MainWindow::scrollDisasmView(int value) {
-    if (value >= ui->disassemblyView->verticalScrollBar()->maximum()) {
-        ui->disassemblyView->verticalScrollBar()->blockSignals(true);
+    QScrollBar *v = ui->disassemblyView->verticalScrollBar();
+    if (value >= v->maximum()) {
+        v->blockSignals(true);
         drawNextDisassembleLine();
-        ui->disassemblyView->verticalScrollBar()->setValue(ui->disassemblyView->verticalScrollBar()->maximum()-1);
-        ui->disassemblyView->verticalScrollBar()->blockSignals(false);
+        v->setValue(ui->disassemblyView->verticalScrollBar()->maximum()-1);
+        v->blockSignals(false);
     }
 }
 
 void MainWindow::equatesClear() {
     // Reset the map
-    currentEquateFile.clear();
-    disasm.addressMap.clear();
-    QMessageBox::warning(this, tr("Equates Cleared"), tr("Cleared disassembly equates."));
+    currentEquateFiles.clear();
+    disasm.map.clear();
+    disasm.reverseMap.clear();
     updateDisasmView(ui->disassemblyView->getSelectedAddress().toInt(Q_NULLPTR, 16), true);
 }
 
-void MainWindow::equatesRefresh() {
-    // Reset the map
-    if (fileExists(currentEquateFile.toStdString())) {
-        disasm.addressMap.clear();
-        equatesAddFile(currentEquateFile);
-        updateDisasmView(ui->disassemblyView->getSelectedAddress().toInt(Q_NULLPTR, 16), true);
-    } else {
-        QMessageBox::warning(this, tr("Error Opening"), tr("Couldn't open equates file."));
+void MainWindow::updateLabels() {
+    QTableWidget *bv = ui->breakpointView;
+    QTableWidget *wv = ui->watchpointView;
+    for (int row = 0; row < wv->rowCount(); row++) {
+        QString newAddress = getAddressEquate(wv->item(row, WATCH_LABEL_LOC)->text().toUpper().toStdString());
+        QString oldAddress = wv->item(row, WATCH_ADDR_LOC)->text();
+        if (!newAddress.isEmpty() && newAddress != oldAddress) {
+            unsigned int mask = ((wv->item(row, WATCH_READ_LOC)->checkState() == Qt::Checked) ? DBG_READ_WATCHPOINT : DBG_NO_HANDLE)|
+                                ((wv->item(row, WATCH_WRITE_LOC)->checkState() == Qt::Checked) ? DBG_WRITE_WATCHPOINT : DBG_NO_HANDLE);
+            // remove old watchpoint and add new one
+            wv->blockSignals(true);
+            debug_breakwatch(static_cast<uint32_t>(hex2int(oldAddress)), mask, false);
+            wv->item(row, WATCH_ADDR_LOC)->setText(newAddress);
+            debug_breakwatch(static_cast<uint32_t>(hex2int(newAddress)), mask, true);
+            watchpointUpdate(row);
+            wv->blockSignals(true);
+        }
     }
+    for (int row = 0; row < bv->rowCount(); row++) {
+        QString newAddress = getAddressEquate(bv->item(row, BREAK_LABEL_LOC)->text().toUpper().toStdString());
+        QString oldAddress = bv->item(row, BREAK_ADDR_LOC)->text();
+        if (!newAddress.isEmpty() && newAddress != oldAddress) {
+            unsigned int mask = ((bv->item(row, BREAK_ENABLE_LOC)->checkState() == Qt::Checked) ? DBG_EXEC_BREAKPOINT
+                                                                                              : DBG_NO_HANDLE);
+            // remove old breakpoint and add new one
+            bv->blockSignals(true);
+            debug_breakwatch(static_cast<uint32_t>(hex2int(oldAddress)), mask, false);
+            bv->item(row, WATCH_ADDR_LOC)->setText(newAddress);
+            debug_breakwatch(static_cast<uint32_t>(hex2int(newAddress)), mask, true);
+            bv->blockSignals(false);
+        }
+    }
+}
+
+void MainWindow::equatesRefresh() {
+    // reset the map
+    disasm.map.clear();
+    disasm.reverseMap.clear();
+    for (QString file : currentEquateFiles) {
+        equatesAddFile(file);
+    }
+    updateLabels();
+    updateDisasmView(ui->disassemblyView->getSelectedAddress().toInt(Q_NULLPTR, 16), true);
 }
 
 void MainWindow::equatesAddDialog() {
     QFileDialog dialog(this);
-    int good;
 
     dialog.setAcceptMode(QFileDialog::AcceptOpen);
     dialog.setFileMode(QFileDialog::ExistingFile);
     dialog.setDirectory(currentDir);
 
     QStringList extFilters;
-    extFilters << tr("Equate files (*.inc *.lab)")
+    extFilters << tr("Equate files (*.inc *.lab *.map)")
                << tr("All Files (*.*)");
     dialog.setNameFilters(extFilters);
 
-    good = dialog.exec();
+    if (dialog.exec()) {
+        currentEquateFiles.append(dialog.selectedFiles());
+        equatesRefresh();
+    }
     currentDir = dialog.directory();
-
-    if (!good) { return; }
-
-    equatesAddFile(dialog.selectedFiles().first());
 }
 
-void MainWindow::equatesAddFile(QString fileName) {
-    std::string current;
-    std::ifstream in;
-    currentEquateFile = fileName;
-    in.open(fileName.toStdString());
+void MainWindow::equatesAddFile(const QString &fileName) {
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        currentEquateFiles.removeAll(fileName);
+        consoleErrStr(tr("[CEmu] Debugger couldn't open this equate file (removed): ") + fileName);
+        return;
+    }
 
-    if (in.good()) {
+    QTextStream in(&file);
+    QString line;
+    if (in.readLineInto(&line) && line.isEmpty() &&
+        in.readLineInto(&line) && line.startsWith("IEEE 695 OMF Linker ")) {
+        while ((in.readLineInto(&line) && line != "\f") ||
+               (in.readLineInto(&line) && line != "EXTERNAL DEFINITIONS:"));
+        if (!in.readLineInto(&line) ||
+            !in.readLineInto(&line) ||
+            !in.readLineInto(&line) ||
+            !in.readLineInto(&line)) {
+            QMessageBox::critical(this, tr("Error"), tr("Looks like a map file, but no definitions found"));
+            return;
+        }
+        while (in.readLineInto(&line) && !line.isEmpty()) {
+            QStringList split = line.split(' ', QString::SkipEmptyParts);
+            if (split.size() != 4) {
+                break;
+            }
+            equatesAddEquate(split[0], split[1].right(6));
+        }
+    } else {
         QRegularExpression equatesRegexp("^\\h*([^\\W\\d]\\w*)\\h*(?:=|\\h\\.?equ(?!\\d))\\h*(?|\\$([\\da-f]{4,})|(\\d[\\da-f]{3,})h)\\h*(?:;.*)?$",
                                          QRegularExpression::CaseInsensitiveOption);
-        // Reset the map
-        disasm.addressMap.clear();
-        while (std::getline(in, current)) {
-            QRegularExpressionMatch matches = equatesRegexp.match(QString::fromStdString(current));
+        do {
+            QRegularExpressionMatch matches = equatesRegexp.match(line);
             if (matches.hasMatch()) {
-                uint32_t address = static_cast<uint32_t>(matches.capturedRef(2).toUInt(Q_NULLPTR, 16));
-                std::string &item = disasm.addressMap[address];
-                if (item.empty()) {
-                    item = matches.captured(1).toStdString();
-                    uint8_t *ptr = phys_mem_ptr(address - 4, 9);
-                    if (ptr && ptr[4] == 0xC3 && (ptr[0] == 0xC3 || ptr[8] == 0xC3)) { // jump table?
-                        uint32_t address2  = ptr[5] | ptr[6] << 8 | ptr[7] << 16;
-                        if (phys_mem_ptr(address2, 1)) {
-                            std::string &item2 = disasm.addressMap[address2];
-                            if (item2.empty()) {
-                                item2 = "_" + item;
-                            }
-                        }
-                    }
+                equatesAddEquate(matches.captured(1), matches.captured(2));
+            }
+        } while (in.readLineInto(&line));
+    }
+
+    updateDisasmView(ui->disassemblyView->getSelectedAddress().toInt(Q_NULLPTR, 16), true);
+    updateLabels();
+}
+
+void MainWindow::equatesAddEquate(QString name, QString addrStr) {
+    uint32_t address = addrStr.toUInt(Q_NULLPTR, 16);
+    std::string &item = disasm.map[address];
+    uint32_t &itemReverse = disasm.reverseMap[name.toUpper().toStdString()];
+    if (item.empty()) {
+        itemReverse = address;
+        item = name.toStdString();
+        uint8_t *ptr = phys_mem_ptr(address - 4, 9);
+        if (ptr && ptr[4] == 0xC3 && (ptr[0] == 0xC3 || ptr[8] == 0xC3)) { // jump table?
+            uint32_t address2  = ptr[5] | ptr[6] << 8 | ptr[7] << 16;
+            if (phys_mem_ptr(address2, 1)) {
+                std::string &item2 = disasm.map[address2];
+                if (item2.empty()) {
+                    item2 = "_" + item;
+                    uint32_t &itemReverse2 = disasm.reverseMap["_" + name.toUpper().toStdString()];
+                    itemReverse2 = address2;
                 }
             }
         }
-        in.close();
-        updateDisasmView(ui->disassemblyView->getSelectedAddress().toInt(Q_NULLPTR, 16), true);
-    } else {
-        QMessageBox::critical(this, tr("Error"), tr("Couldn't open this file"));
     }
 }
 
@@ -1288,4 +1441,102 @@ void MainWindow::gotoPressed() {
     if (accept) {
         updateDisasmView(hex2int(prevGotoAddress = address), false);
     }
+}
+
+
+// ------------------------------------------------
+// Tooltips
+// ------------------------------------------------
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
+    if (!inDebugger) {
+        return false;
+    }
+    if (e->type() == QEvent::MouseButtonPress) {
+        QString obj_name = obj->objectName();
+
+        if (obj_name.length() > 3) return false;
+
+        if (obj_name == "hl")  memGoto(ui->hlregView->text());
+        if (obj_name == "de")  memGoto(ui->deregView->text());
+        if (obj_name == "bc")  memGoto(ui->bcregView->text());
+        if (obj_name == "ix")  memGoto(ui->ixregView->text());
+        if (obj_name == "iy")  memGoto(ui->iyregView->text());
+        if (obj_name == "hl_") memGoto(ui->hl_regView->text());
+        if (obj_name == "de_") memGoto(ui->de_regView->text());
+        if (obj_name == "bc_") memGoto(ui->bc_regView->text());
+        if (obj_name == "spl") memGoto(ui->splregView->text());
+        if (obj_name == "pc")  memGoto(ui->pcregView->text());
+        return true;
+    } else if (e->type() == QEvent::MouseMove) {
+        QString obj_name = obj->objectName();
+
+        if (obj_name.length() < 4) return false;
+
+        QLineEdit *widget = static_cast<QLineEdit*>(obj);
+
+        unsigned int num  = widget->text().toUInt(Q_NULLPTR, 16);
+        unsigned int num0 = num & 255;
+        unsigned int num1 = (num >> 8) & 255;
+        unsigned int num2 = (num >> 16) & 255;
+
+        QString t;
+        QString val  = QString::number(num);
+        QString val0 = QString::number(num0);
+        QString val1 = QString::number(num1);
+        QString val2 = QString::number(num2);
+
+        if (num  > 0x7FFFFF) {
+            val  += QStringLiteral("\n\t") + QString::number(static_cast<int32_t>(num | 0xff000000u));
+        }
+        if (num0 > 0x7F) {
+            val0 += QStringLiteral("\t") + QString::number(static_cast<int8_t>(num0));
+        }
+        if (num1 > 0x7F) {
+            val1 += QStringLiteral("\t") + QString::number(static_cast<int8_t>(num1));
+        }
+        if (num2 > 0x7F) {
+            val2 += QStringLiteral("\t") + QString::number(static_cast<int8_t>(num2));
+        }
+
+        if (obj_name == "afregView")  t = QStringLiteral("a:\t") + val1 +
+                                          QStringLiteral("\nf:\t") + val0;
+        if (obj_name == "hlregView")  t = QStringLiteral("hl:\t") + val +
+                                          QStringLiteral("\nu:\t") + val2 +
+                                          QStringLiteral("\nh:\t") + val1 +
+                                          QStringLiteral("\nl:\t") + val0;
+        if (obj_name == "deregView")  t = QStringLiteral("de:\t") + val +
+                                          QStringLiteral("\nu:\t") + val2 +
+                                          QStringLiteral("\nd:\t") + val1 +
+                                          QStringLiteral("\ne:\t") + val0;
+        if (obj_name == "bcregView")  t = QStringLiteral("bc:\t") + val +
+                                          QStringLiteral("\nu:\t") + val2 +
+                                          QStringLiteral("\nb:\t") + val1 +
+                                          QStringLiteral("\nc:\t") + val0;
+        if (obj_name == "ixregView")  t = QStringLiteral("ix:\t") + val +
+                                          QStringLiteral("\nixh:\t") + val1 +
+                                          QStringLiteral("\nixl:\t") + val0;
+        if (obj_name == "iyregView")  t = QStringLiteral("iy:\t") + val +
+                                          QStringLiteral("\niyh:\t") + val1 +
+                                          QStringLiteral("\niyl:\t") + val0;
+        if (obj_name == "af_regView") t = QStringLiteral("a':\t") + val1 +
+                                          QStringLiteral("\nf':\t") + val0;
+        if (obj_name == "hl_regView") t = QStringLiteral("hl':\t") + val +
+                                          QStringLiteral("\nu':\t") + val2 +
+                                          QStringLiteral("\nh':\t") + val1 +
+                                          QStringLiteral("\nl':\t") + val0;
+        if (obj_name == "de_regView") t = QStringLiteral("de':\t") + val +
+                                          QStringLiteral("\nu':\t") + val2 +
+                                          QStringLiteral("\nd':\t") + val1 +
+                                          QStringLiteral("\ne':\t") + val0;
+        if (obj_name == "bc_regView") t = QStringLiteral("bc':\t") + val +
+                                          QStringLiteral("\nu':\t") + val2 +
+                                          QStringLiteral("\nb':\t") + val1 +
+                                          QStringLiteral("\nc':\t") + val0;
+        if (obj_name == "rregView")   t = QStringLiteral("r:\t") + val;
+
+        QToolTip::showText(static_cast<QMouseEvent*>(e)->globalPos(), t, widget, widget->rect());
+        return true;
+    }
+    return false;
 }

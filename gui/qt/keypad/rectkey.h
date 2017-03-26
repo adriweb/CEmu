@@ -40,7 +40,7 @@ public:
             Qt::Alignment alphaAlign  = Qt::AlignVCenter | Qt::AlignRight)
         : RectKey{config.next(), textGeometry, keyGeometry, labelSize,
                   topLeft, topRight, bottomLeft, bottomRight,
-                 keyColor, textColor, config.secondColor, config.alphaColor,
+                  keyColor, textColor, config.secondColor, config.alphaColor,
                   labelText, secondText, alphaText, config.labelFont, config.secondFont, config.alphaFont,
                   labelAlign, secondAlign, alphaAlign} { }
     RectKey(KeyCode keycode,
@@ -61,7 +61,7 @@ protected:
     QColor m_textColor, m_secondColor, m_alphaColor;
     Qt::Alignment m_labelAlign, m_secondAlign, m_alphaAlign;
     QFont m_labelFont, m_secondFont, m_alphaFont;
-    const QString m_labelText, m_secondText, m_alphaText;
+    const QString m_secondText, m_alphaText;
 };
 
 #endif

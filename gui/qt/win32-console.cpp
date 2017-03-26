@@ -26,7 +26,7 @@ void MainWindow::toggleConsole() {
         }
     }
     
-    settings->setValue(QStringLiteral("enableWin32Console"), actionToggleConsole->isChecked());
+    settings->setValue(SETTING_ENABLE_WIN_CONSOLE, actionToggleConsole->isChecked());
 }
 
 void MainWindow::installToggleConsole() {
@@ -37,13 +37,13 @@ void MainWindow::installToggleConsole() {
     actionToggleConsole->setCheckable(true);
     actionToggleConsole->setChecked(true);
     actionToggleConsole->setEnabled(true);
-    ui->menuHelp->addAction(actionToggleConsole);
+    ui->menuCalculator->addAction(actionToggleConsole);
     
     // Connect menu action to function
     connect(actionToggleConsole, &QAction::triggered, this, &MainWindow::toggleConsole);
     
     // Check if we opted to not show a window
-    if (!settings->value(QStringLiteral("enableWin32Console"), true).toBool()) {
+    if (!settings->value(SETTING_ENABLE_WIN_CONSOLE, true).toBool()) {
         actionToggleConsole->setChecked(false);
         toggleConsole();
     }

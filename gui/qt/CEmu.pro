@@ -1,4 +1,5 @@
-lessThan(QT_MAJOR_VERSION, 5) : error("You need at least Qt 5 to build CEmu!")
+lessThan(QT_MAJOR_VERSION, 5) : error("You need at least Qt 5.6 to build CEmu!")
+lessThan(QT_MINOR_VERSION, 6) : error("You need at least Qt 5.6 to build CEmu!")
 
 # CEmu version
 if (0) { # GitHub release/deployment build. Has to correspond to the git tag.
@@ -20,7 +21,7 @@ TARGET = CEmu
 TEMPLATE = app
 
 # Localization
-TRANSLATIONS += i18n/fr_FR.ts i18n/es_ES.ts
+TRANSLATIONS += i18n/fr_FR.ts i18n/es_ES.ts i18n/nl_NL.ts
 
 CONFIG += c++11 console
 
@@ -57,7 +58,7 @@ if (macx|linux) {
     # Be more secure by default...
     GLOBAL_FLAGS    += -fPIE -Wstack-protector -fstack-protector-strong --param=ssp-buffer-size=1
     # Use ASAN on debug builds. Watch out about ODR crashes when built with -flto. detect_odr_violation=0 as an env var may help.
-    CONFIG(debug, debug|release): GLOBAL_FLAGS += -fsanitize=address,bounds -fsanitize-undefined-trap-on-error -O0
+    #CONFIG(debug, debug|release): GLOBAL_FLAGS += -fsanitize=address,bounds -fsanitize-undefined-trap-on-error -O0
 }
 
 macx:  QMAKE_LFLAGS += -Wl,-dead_strip
@@ -132,19 +133,22 @@ SOURCES +=  utils.cpp \
     ../../core/debug/debug.c \
     sendinghandler.cpp \
     capture/optimize.c \
-    capture/opttemplate.c \
     capture/gifread.c \
     capture/gifwrite.c \
-    capture/quantize.c \
     capture/giffunc.c \
-    capture/xform.c \
     debugger.cpp \
     hexeditor.cpp \
     settings.cpp \
-    ../../core/debug/stepping.cpp
+    ../../core/debug/stepping.cpp \
+    ../../core/dma.c \
+    ipc.cpp \
+    keyhistory.cpp \
+    capture/opttemplate.c \
+    capture/quantize.c
 
 linux|macx: SOURCES += ../../core/os/os-linux.c
 win32: SOURCES += ../../core/os/os-win32.c win32-console.cpp
+win32: LIBS += -lpsapi
 
 HEADERS  +=  utils.h \
     mainwindow.h \
@@ -210,20 +214,21 @@ HEADERS  +=  utils.h \
     ../../core/debug/stepping.h \
     cemuopts.h \
     sendinghandler.h \
-    capture/kcolor.h \
     capture/gifsicle.h \
-    capture/lcdf/clp.h \
-    capture/lcdf/inttypes.h \
     capture/lcdfgif/gif.h \
-    capture/lcdfgif/gifx.h \
     keypad/keycode.h \
-    debugger.h
+    debugger.h \
+    ../../core/dma.h \
+    ipc.h \
+    keyhistory.h \
+    capture/kcolor.h
 
 FORMS    += mainwindow.ui \
     romselection.ui \
     lcdpopout.ui \
     searchwidget.ui \
-    basiccodeviewerwindow.ui
+    basiccodeviewerwindow.ui \
+    keyhistory.ui
 
 RESOURCES += \
     resources.qrc

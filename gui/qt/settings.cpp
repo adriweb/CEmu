@@ -23,6 +23,49 @@
 #include "../../core/schedule.h"
 #include "../../core/link.h"
 
+const QString MainWindow::SETTING_DEBUGGER_TEXT_SIZE        = QStringLiteral("Debugger/text_size");
+const QString MainWindow::SETTING_DEBUGGER_ADD_DISASM_SPACE = QStringLiteral("Debugger/add_disassembly_space");
+const QString MainWindow::SETTING_DEBUGGER_RESTORE_ON_OPEN  = QStringLiteral("Debugger/restore_on_open");
+const QString MainWindow::SETTING_DEBUGGER_SAVE_ON_CLOSE    = QStringLiteral("Debugger/save_on_close");
+const QString MainWindow::SETTING_DEBUGGER_RESET_OPENS      = QStringLiteral("Debugger/open_on_reset");
+const QString MainWindow::SETTING_DEBUGGER_ENABLE_SOFT      = QStringLiteral("Debugger/enable_soft_commands");
+const QString MainWindow::SETTING_DEBUGGER_DATA_COL         = QStringLiteral("Debugger/show_data_column");
+const QString MainWindow::SETTING_DEBUGGER_IMAGE_PATH       = QStringLiteral("Debugger/image_path");
+const QString MainWindow::SETTING_DEBUGGER_FLASH_BYTES      = QStringLiteral("Debugger/flash_bytes_per_line");
+const QString MainWindow::SETTING_DEBUGGER_RAM_BYTES        = QStringLiteral("Debugger/ram_bytes_per_line");
+const QString MainWindow::SETTING_DEBUGGER_MEM_BYTES        = QStringLiteral("Debugger/mem_bytes_per_line");
+const QString MainWindow::SETTING_SCREEN_REFRESH_RATE       = QStringLiteral("Screen/refresh_rate");
+const QString MainWindow::SETTING_SCREEN_SCALE              = QStringLiteral("Screen/scale");
+const QString MainWindow::SETTING_SCREEN_SKIN               = QStringLiteral("Screen/skin");
+const QString MainWindow::SETTING_KEYPAD_KEYMAP             = QStringLiteral("Keypad/map");
+const QString MainWindow::SETTING_KEYPAD_COLOR              = QStringLiteral("Keypad/color");
+const QString MainWindow::SETTING_WINDOW_SIZE               = QStringLiteral("Window/size");
+const QString MainWindow::SETTING_WINDOW_STATE              = QStringLiteral("Window/state");
+const QString MainWindow::SETTING_WINDOW_GEOMETRY           = QStringLiteral("Window/geometry");
+const QString MainWindow::SETTING_CAPTURE_FRAMESKIP         = QStringLiteral("Capture/frameskip");
+const QString MainWindow::SETTING_IMAGE_PATH                = QStringLiteral("image_path");
+const QString MainWindow::SETTING_ROM_PATH                  = QStringLiteral("rom_path");
+const QString MainWindow::SETTING_FIRST_RUN                 = QStringLiteral("first_run");
+const QString MainWindow::SETTING_UI_EDIT_MODE              = QStringLiteral("ui_edit_mode");
+const QString MainWindow::SETTING_SAVE_ON_CLOSE             = QStringLiteral("save_on_close");
+const QString MainWindow::SETTING_RESTORE_ON_OPEN           = QStringLiteral("restore_on_open");
+const QString MainWindow::SETTING_EMUSPEED                  = QStringLiteral("emulated_speed");
+const QString MainWindow::SETTING_AUTOUPDATE                = QStringLiteral("check_for_updates");
+const QString MainWindow::SETTING_DISABLE_MENUBAR           = QStringLiteral("disable_menubar");
+const QString MainWindow::SETTING_ALWAYS_ON_TOP             = QStringLiteral("always_on_top");
+const QString MainWindow::SETTING_CURRENT_DIR               = QStringLiteral("current_directory");
+const QString MainWindow::SETTING_ENABLE_WIN_CONSOLE        = QStringLiteral("enable_windows_console");
+
+const QString MainWindow::SETTING_KEYPAD_CEMU               = QStringLiteral("cemu");
+const QString MainWindow::SETTING_KEYPAD_TILEM              = QStringLiteral("tilem");
+const QString MainWindow::SETTING_KEYPAD_WABBITEMU          = QStringLiteral("wabbitemu");
+const QString MainWindow::SETTING_KEYPAD_JSTIFIED           = QStringLiteral("jsTIfied");
+
+const QString MainWindow::SETTING_DEFAULT_FILE              = QStringLiteral("/cemu_config.ini");
+const QString MainWindow::SETTING_DEFAULT_ROM_FILE          = QStringLiteral("/cemu_rom.rom");
+const QString MainWindow::SETTING_DEFAULT_DEBUG_FILE        = QStringLiteral("/cemu_debug.ini");
+const QString MainWindow::SETTING_DEFAULT_IMAGE_FILE        = QStringLiteral("/cemu_image.ce");
+
 void MainWindow::setPortableConfig(bool state) {
     ui->checkPortable->setChecked(state);
     QString debugPath;
@@ -32,20 +75,20 @@ void MainWindow::setPortableConfig(bool state) {
     QDir dir = qApp->applicationDirPath();
 
     if (state) {
-        setPath = qApp->applicationDirPath() + QStringLiteral("/cemu_config.ini");
+        setPath = qApp->applicationDirPath() + SETTING_DEFAULT_FILE;
         QFile::copy(pathSettings, setPath);
     } else {
-        setPath = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/CEmu/cemu_config.ini");
+        setPath = configPath + SETTING_DEFAULT_FILE;
         QFile(pathSettings).remove();
     }
-    debugPath = QDir::cleanPath(QFileInfo(setPath).absoluteDir().absolutePath() + QStringLiteral("/cemu_debug.ini"));
-    imagePath =  QDir::cleanPath(QFileInfo(setPath).absoluteDir().absolutePath() + QStringLiteral("/cemu_image.ce"));
+    debugPath = QDir::cleanPath(QFileInfo(setPath).absoluteDir().absolutePath() + SETTING_DEFAULT_DEBUG_FILE);
+    imagePath =  QDir::cleanPath(QFileInfo(setPath).absoluteDir().absolutePath() + SETTING_DEFAULT_IMAGE_FILE);
 
     if(state) {
         debugPath = dir.relativeFilePath(debugPath);
         imagePath = dir.relativeFilePath(imagePath);
-        romPath = dir.relativeFilePath(settings->value(QStringLiteral("romImage")).toString());
-        settings->setValue(QStringLiteral("romImage"), romPath);
+        romPath = dir.relativeFilePath(settings->value(SETTING_ROM_PATH).toString());
+        settings->setValue(SETTING_ROM_PATH, romPath);
         ui->rompathView->setText(romPath);
         ui->settingsPath->setText(dir.relativeFilePath(setPath));
     } else {
@@ -54,8 +97,8 @@ void MainWindow::setPortableConfig(bool state) {
 
     delete settings;
     settings = new QSettings(setPath, QSettings::IniFormat);
-    settings->setValue(QStringLiteral("savedDebugPath"), debugPath);
-    settings->setValue(QStringLiteral("savedImagePath"), imagePath);
+    settings->setValue(SETTING_DEBUGGER_IMAGE_PATH, debugPath);
+    settings->setValue(SETTING_IMAGE_PATH, imagePath);
 
     ui->savedImagePath->setText(imagePath);
     ui->savedDebugPath->setText(debugPath);
@@ -67,27 +110,139 @@ void MainWindow::setPortableConfig(bool state) {
     ui->buttonChangeSavedImagePath->setEnabled(!portable);
 }
 
+bool MainWindow::checkForCEmuBootImage() {
+    QDirIterator dirIt(qApp->applicationDirPath(), QDirIterator::NoIteratorFlags);
+    while (dirIt.hasNext()) {
+        dirIt.next();
+        QString dirItFile = dirIt.filePath();
+        if (QFileInfo(dirItFile).isFile()) {
+            if (QFileInfo(dirItFile).suffix() == QStringLiteral("cemu")) {
+                if (!loadedCEmuBootImage) {
+                    loadedCEmuBootImage = loadCEmuBootImage(dirItFile);
+                }
+                QFile(dirItFile).remove();
+            }
+        }
+    }
+    return loadedCEmuBootImage;
+}
+
+bool MainWindow::loadCEmuBootImage(const QString &bootImagePath) {
+    QString newSettingsPath = configPath + SETTING_DEFAULT_FILE;
+    QString romPath = configPath + SETTING_DEFAULT_ROM_FILE;
+    QFile bootFile(bootImagePath);
+    QFile romFile(romPath);
+    romFile.remove();
+    if (!romFile.open(QIODevice::WriteOnly)) { return false; }
+    QFile settingsFile(newSettingsPath);
+    settingsFile.remove();
+    if (!settingsFile.open(QIODevice::WriteOnly)) { return false; }
+    bootFile.open(QIODevice::ReadOnly);
+    QByteArray romData = bootFile.read(0x400000);
+    QByteArray settingsData = bootFile.readAll();
+    romFile.write(romData);
+    settingsFile.write(settingsData);
+    romFile.close();
+    settingsFile.close();
+    bootFile.close();
+    pathSettings = newSettingsPath;
+    return true;
+}
+
+void MainWindow::exportCEmuBootImage() {
+    QMessageBox::information(this, tr("Information"), tr("A bootable image can be used to start CEmu with predefined configurations, without the need for any extra setup."
+                                                         "\n\nOnce done, a bootable image should be placed in the same directory as the CEmu executable. When CEmu is then started, "
+                                                         "the boot image will be loaded automatically and then removed for convience."));
+
+    QString saveImage = QFileDialog::getSaveFileName(this, tr("Save bootable CEmu image"),
+                                                      currentDir.absolutePath(),
+                                                      tr("Bootable CEmu images (*.cemu);"));
+    saveMiscSettings();
+    settings->sync();
+
+    if (!saveImage.isEmpty()) {
+        currentDir = QFileInfo(saveImage).absoluteDir();
+        QFile romFile(emu.rom);
+        if (!romFile.open(QIODevice::ReadOnly)) return;
+        QByteArray romData = romFile.readAll();
+
+        QFile settingsFile(pathSettings);
+        if (!settingsFile.open(QIODevice::ReadOnly)) return;
+        QByteArray settingsData = settingsFile.readAll();
+
+        QFile writter(saveImage);
+        writter.open(QIODevice::WriteOnly);
+        writter.write(romData);
+        writter.write(settingsData);
+        romFile.close();
+        settingsFile.close();
+        writter.close();
+    }
+}
+
+void MainWindow::setEnableSoftCommands(bool state) {
+    ui->checkDisableSoftCommands->blockSignals(true);
+    ui->checkDisableSoftCommands->setChecked(state);
+    ui->checkDisableSoftCommands->blockSignals(false);
+    settings->setValue(SETTING_DEBUGGER_ENABLE_SOFT, state);
+    enabledSoftCommands = state;
+}
+
+void MainWindow::setDataCol(bool state) {
+    ui->checkDataCol->setChecked(state);
+    settings->setValue(SETTING_DEBUGGER_DATA_COL, state);
+    useDataCol = state;
+}
+
+void MainWindow::saveMiscSettings() {
+    settings->setValue(SETTING_WINDOW_STATE,                saveState(WindowStateVersion));
+    settings->setValue(SETTING_WINDOW_GEOMETRY,             saveGeometry());
+    settings->setValue(SETTING_WINDOW_SIZE,                 size());
+    settings->setValue(SETTING_CURRENT_DIR,                 currentDir.absolutePath());
+    settings->setValue(SETTING_DEBUGGER_FLASH_BYTES,        ui->flashBytes->value());
+    settings->setValue(SETTING_DEBUGGER_RAM_BYTES,          ui->ramBytes->value());
+    settings->setValue(SETTING_DEBUGGER_MEM_BYTES,          ui->memBytes->value());
+}
+
+void MainWindow::setMenuBarState(bool state) {
+    ui->menubar->setHidden(state);
+    ui->actionDisableMenuBar->setChecked(state);
+    settings->setValue(SETTING_DISABLE_MENUBAR, state);
+}
+
+void MainWindow::resetSettingsIfLoadedCEmuBootableImage() {
+    if (loadedCEmuBootImage) {
+        settings->setValue(SETTING_FIRST_RUN, false);
+    }
+}
+
+void MainWindow::setDebugResetTrigger(bool state) {
+    ui->checkDebugResetTrigger->setChecked(state);
+    settings->setValue(SETTING_DEBUGGER_RESET_OPENS, state);
+    debugger.resetOpensDebugger = state;
+}
+
 void MainWindow::setAutoSaveState(bool state) {
     ui->checkSaveRestore->setChecked(state);
-    settings->setValue(QStringLiteral("restoreOnOpen"), state);
-    settings->setValue(QStringLiteral("saveOnClose"), state);
+    settings->setValue(SETTING_RESTORE_ON_OPEN, state);
+    settings->setValue(SETTING_SAVE_ON_CLOSE, state);
 }
 
 void MainWindow::setSaveDebug(bool state) {
     ui->checkSaveLoadDebug->setChecked(state);
-    settings->setValue(QStringLiteral("saveDebugOnClose"), state);
-    settings->setValue(QStringLiteral("loadDebugOnOpen"), state);
+    settings->setValue(SETTING_DEBUGGER_SAVE_ON_CLOSE, state);
+    settings->setValue(SETTING_DEBUGGER_RESTORE_ON_OPEN, state);
 }
 
 void MainWindow::setSpaceDisasm(bool state) {
     ui->checkAddSpace->setChecked(state);
-    settings->setValue(QStringLiteral("addDisasmSpace"), state);
+    settings->setValue(SETTING_DEBUGGER_ADD_DISASM_SPACE, state);
     disasm.spacing_string = state ? ", " : ",";
 }
 
 void MainWindow::setFont(int fontSize) {
-    ui->textSizeSlider->setValue(fontSize);
-    settings->setValue(QStringLiteral("textSize"), ui->textSizeSlider->value());
+    ui->textSize->setValue(fontSize);
+    settings->setValue(SETTING_DEBUGGER_TEXT_SIZE, ui->textSize->value());
 
     QFont monospace = QFontDatabase::systemFont(QFontDatabase::FixedFont);
 
@@ -122,8 +277,9 @@ void MainWindow::setFont(int fontSize) {
     ui->cycleView->setFont(monospace);
 }
 
-void MainWindow::setKeypadColor(unsigned color) {
+void MainWindow::setKeypadColor(unsigned int color) {
     ui->keypadWidget->setType(get_device_type(), color);
+    settings->setValue(SETTING_KEYPAD_COLOR, color);
 }
 
 void MainWindow::setImagePath() {
@@ -132,7 +288,7 @@ void MainWindow::setImagePath() {
                                                            tr("CEmu images (*.ce);;All files (*.*)"));
     if (!saveImagePath.isEmpty()) {
         currentDir = QFileInfo(saveImagePath).absoluteDir();
-        settings->setValue(QStringLiteral("savedImagePath"), QVariant(saveImagePath.toStdString().c_str()));
+        settings->setValue(SETTING_IMAGE_PATH, saveImagePath);
         ui->savedImagePath->setText(saveImagePath);
     }
 }
@@ -143,7 +299,7 @@ void MainWindow::setDebugPath() {
                                                            tr("Debugging information (*.ini);;All files (*.*)"));
     if (!savePath.isEmpty()) {
         currentDir = QFileInfo(savePath).absoluteDir();
-        settings->setValue(QStringLiteral("savedDebugPath"), QVariant(savePath.toStdString().c_str()));
+        settings->setValue(SETTING_DEBUGGER_IMAGE_PATH, savePath);
         ui->savedDebugPath->setText(savePath);
     }
 }
@@ -155,7 +311,7 @@ void MainWindow::setUIStyle(bool docks_enabled) {
     }
 
     // Create "Docks" menu to make closing and opening docks more intuitive
-    QMenu *docksMenu = new QMenu(tr("Docks"), this);
+    docksMenu = new QMenu(tr("Docks"), this);
     ui->menubar->insertMenu(ui->menuAbout->menuAction(), docksMenu);
 
     //Convert the tabs into QDockWidgets
@@ -168,12 +324,8 @@ void MainWindow::setUIStyle(bool docks_enabled) {
         action->setIcon(dw->windowIcon());
         docksMenu->addAction(action);
 
-        QWidget *tab = dw->widget();
-        if (tab == ui->tabDebugger)
-            debuggerDock = dw;
-
         addDockWidget(Qt::RightDockWidgetArea, dw);
-        if (last_dock != nullptr)
+        if (last_dock != Q_NULLPTR)
             tabifyDockWidget(last_dock, dw);
 
         last_dock = dw;
@@ -194,7 +346,7 @@ void MainWindow::toggleUIEditMode(void) {
 
 void MainWindow::setUIEditMode(bool mode) {
     uiEditMode = mode;
-    settings->setValue(QStringLiteral("uiMode"), uiEditMode);
+    settings->setValue(SETTING_UI_EDIT_MODE, uiEditMode);
     toggleAction->setChecked(uiEditMode);
     for (const auto& dock : findChildren<DockWidget *>()) {
         dock->toggleState(uiEditMode);
@@ -207,7 +359,7 @@ void MainWindow::setThrottleMode(int mode) {
 }
 
 void MainWindow::setAutoCheckForUpdates(int state) {
-    settings->setValue(QStringLiteral("autoUpdate"), state);
+    settings->setValue(SETTING_AUTOUPDATE, state);
     ui->checkUpdates->setChecked(state);
 
     if (state == Qt::Checked) {
@@ -265,12 +417,12 @@ void MainWindow::checkForUpdates(bool forceInfoBox) {
 }
 
 void MainWindow::adjustScreen() {
-    float scale = ui->scaleSlider->value() / 100.0;
+    float scale = ui->scaleLCD->value() / 100.0;
     bool skin = ui->checkSkin->isChecked();
     ui->calcSkinTop->setVisible(skin);
     float w, h;
-    w = 320 * scale;
-    h = 240 * scale;
+    w = LCD_WIDTH * scale;
+    h = LCD_HEIGHT * scale;
     ui->lcdWidget->setFixedSize(w, h);
     ui->lcdWidget->move(skin ? 60 * scale : 0, skin ? 78 * scale : 0);
     if (skin) {
@@ -281,36 +433,29 @@ void MainWindow::adjustScreen() {
     ui->screenWidgetContents->setFixedSize(w, h);
 }
 
-int MainWindow::setReprintScale(int scale) {
-    int roundedScale = round(scale / 25.0) * 25;
-    ui->scaleLabel->setText(QString::number(roundedScale) + "%");
-    return roundedScale;
-}
-
 void MainWindow::setLCDScale(int scale) {
-    int roundedScale = setReprintScale(scale);
-    settings->setValue(QStringLiteral("scale"), roundedScale);
-    ui->scaleSlider->setValue(roundedScale);
+    int roundedScale = round(scale / 25.0) * 25;
+    settings->setValue(SETTING_SCREEN_SCALE, roundedScale);
+    ui->scaleLCD->setValue(roundedScale);
     adjustScreen();
 }
 
 void MainWindow::setSkinToggle(bool enable) {
-    settings->setValue(QStringLiteral("skin"), enable);
+    settings->setValue(SETTING_SCREEN_SKIN, enable);
     ui->checkSkin->setChecked(enable);
     adjustScreen();
 }
 
 void MainWindow::setLCDRefresh(int value) {
-    settings->setValue(QStringLiteral("refreshRate"), value);
-    ui->refreshLabel->setText(QString::number(value)+" FPS");
-    ui->refreshSlider->setValue(value);
+    settings->setValue(SETTING_SCREEN_REFRESH_RATE, value);
+    ui->refreshLCD->setValue(value);
     ui->lcdWidget->refreshRate(value);
     changeFramerate();
 }
 
 void MainWindow::setEmulatedSpeed(int value) {
     int actualSpeed = value*10;
-    settings->setValue(QStringLiteral("emuRate"), value);
+    settings->setValue(SETTING_EMUSPEED, value);
     ui->emulationSpeedLabel->setText(QString::number(actualSpeed).rightJustified(3, '0')+QStringLiteral("%"));
     ui->emulationSpeed->setValue(value);
     emit setEmuSpeed(actualSpeed);
@@ -318,37 +463,40 @@ void MainWindow::setEmulatedSpeed(int value) {
 
 void MainWindow::selectKeypadColor() {
     QString sender_obj_name = sender()->objectName();
-    unsigned keypad_color = KEYPAD_BLACK;
+    unsigned int color = KEYPAD_BLACK;
 
-    if (sender_obj_name == "buttonWhite")     keypad_color = KEYPAD_WHITE;
-    if (sender_obj_name == "buttonBlack")     keypad_color = KEYPAD_BLACK;
-    if (sender_obj_name == "buttonGolden")    keypad_color = KEYPAD_GOLDEN;
-    if (sender_obj_name == "buttonPlum")      keypad_color = KEYPAD_PLUM;
-    if (sender_obj_name == "buttonPink")      keypad_color = KEYPAD_PINK;
-    if (sender_obj_name == "buttonRed")       keypad_color = KEYPAD_RED;
-    if (sender_obj_name == "buttonLightning") keypad_color = KEYPAD_LIGHTNING;
-    if (sender_obj_name == "buttonTrueBlue")  keypad_color = KEYPAD_TRUE_BLUE;
-    if (sender_obj_name == "buttonDenim")     keypad_color = KEYPAD_DENIM;
-    if (sender_obj_name == "buttonSilver")    keypad_color = KEYPAD_SILVER;
+    if (sender_obj_name == "buttonWhite")     color = KEYPAD_WHITE;
+    if (sender_obj_name == "buttonBlack")     color = KEYPAD_BLACK;
+    if (sender_obj_name == "buttonGolden")    color = KEYPAD_GOLDEN;
+    if (sender_obj_name == "buttonPlum")      color = KEYPAD_PLUM;
+    if (sender_obj_name == "buttonPink")      color = KEYPAD_PINK;
+    if (sender_obj_name == "buttonRed")       color = KEYPAD_RED;
+    if (sender_obj_name == "buttonLightning") color = KEYPAD_LIGHTNING;
+    if (sender_obj_name == "buttonTrueBlue")  color = KEYPAD_TRUE_BLUE;
+    if (sender_obj_name == "buttonDenim")     color = KEYPAD_DENIM;
+    if (sender_obj_name == "buttonSilver")    color = KEYPAD_SILVER;
+    if (sender_obj_name == "buttonSpaceGrey") color = KEYPAD_SPACEGREY;
+    if (sender_obj_name == "buttonCoral")     color = KEYPAD_CORAL;
+    if (sender_obj_name == "buttonMint")      color = KEYPAD_MINT;
 
-    setKeypadColor(keypad_color);
+    setKeypadColor(color);
 }
 
 void MainWindow::keymapChanged() {
     if (ui->radioCEmuKeys->isChecked()) {
-        setKeymap(QStringLiteral("cemu"));
+        setKeymap(SETTING_KEYPAD_CEMU);
     } else if (ui->radioTilEmKeys->isChecked()) {
-        setKeymap(QStringLiteral("tilem"));
+        setKeymap(SETTING_KEYPAD_TILEM);
     } else if (ui->radioWabbitemuKeys->isChecked()) {
-        setKeymap(QStringLiteral("wabbitemu"));
+        setKeymap(SETTING_KEYPAD_WABBITEMU);
     } else if (ui->radiojsTIfiedKeys->isChecked()) {
-        setKeymap(QStringLiteral("jsTIfied"));
+        setKeymap(SETTING_KEYPAD_JSTIFIED);
     }
 }
 
 void MainWindow::setKeymap(const QString & value) {
-    settings->setValue(QStringLiteral("keyMap"), value);
-    keypadBridge.setKeymap(value);
+    settings->setValue(SETTING_KEYPAD_KEYMAP, value);
+    keypadBridge->setKeymap(value);
 }
 
 void MainWindow::setAlwaysOnTop(int state) {
@@ -358,6 +506,6 @@ void MainWindow::setAlwaysOnTop(int state) {
         setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
     }
     show();
-    settings->setValue(QStringLiteral("onTop"), state);
+    settings->setValue(SETTING_ALWAYS_ON_TOP, state);
     ui->checkAlwaysOnTop->setCheckState(Qt::CheckState(state));
 }

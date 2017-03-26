@@ -29,8 +29,8 @@ signals:
     void debugInputRequested(bool);
 
     // I/O
-    void consoleStr(QString);
-    void consoleErrStr(QString);
+    void consoleStr(const QString&);
+    void consoleErrStr(const QString&);
     void exited(int);
 
     // Status
@@ -77,7 +77,7 @@ public slots:
 private:
     void setActualSpeed(int);
 
-    int speed, actualSpeed;
+    volatile int speed, actualSpeed;
     bool enterDebugger = false;
     bool enterSendState = false;
     bool enterReceiveState = false;

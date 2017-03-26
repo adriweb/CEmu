@@ -1,17 +1,3 @@
-/* Copyright (C) 2015  Fabian Vogt
- * Modified for the CE calculator by CEmu developers
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-*/
-
 #include "emuthread.h"
 
 #include <cassert>
@@ -89,7 +75,7 @@ void gui_entered_send_state(bool entered) {
 }
 
 EmuThread::EmuThread(QObject *p) : QThread(p) {
-    assert(emu_thread == nullptr);
+    assert(emu_thread == Q_NULLPTR);
     emu_thread = this;
     speed = actualSpeed = 100;
     lastTime = std::chrono::steady_clock::now();
@@ -214,9 +200,16 @@ void EmuThread::setActualSpeed(int value) {
 }
 
 void EmuThread::throttleTimerWait() {
+    if (!speed) {
+        setActualSpeed(0);
+        while(!speed) {
+            QThread::usleep(10000);
+        }
+        return;
+    }
     std::chrono::duration<int, std::ratio<100, 60>> unit(1);
     std::chrono::steady_clock::duration interval(std::chrono::duration_cast<std::chrono::steady_clock::duration>
-                                                 (std::chrono::duration<int, std::ratio<1, 60 * 1000000>>(1000000 * 100 / speed)));
+                                                (std::chrono::duration<int, std::ratio<1, 60 * 1000000>>(1000000 * 100 / speed)));
     std::chrono::steady_clock::time_point cur_time = std::chrono::steady_clock::now(), next_time = lastTime + interval;
     if (throttleOn && cur_time < next_time) {
         setActualSpeed(speed);

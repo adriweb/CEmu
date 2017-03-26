@@ -61,15 +61,21 @@ static uint8_t control_read(const uint16_t pio, bool peek) {
 }
 
 /* Write to the 0x0XXX range of ports */
-static void control_write(const uint16_t pio, const uint8_t byte, bool peek) {
+static void control_write(const uint16_t pio, const uint8_t byte, bool poke) {
     uint8_t index = (uint8_t)pio;
-    (void)peek;
+    (void)poke;
 
     switch (index) {
         case 0x00:
             control.ports[index] = byte;
             if (byte & 0x10) {
+                gui_console_printf("[CEmu] Reset caused by writing to bit 5 of port 0. PC: %#06x\n", cpu.registers.PC);
                 cpuEvents |= EVENT_RESET;
+#ifdef DEBUG_SUPPORT
+                if (debugger.resetOpensDebugger) {
+                    open_debugger(DBG_MISC_RESET, cpu.registers.PC);
+                }
+#endif
             }
             switch (control.readBatteryStatus) {
                 case 3: /* Battery Level is 0 */
@@ -126,6 +132,12 @@ static void control_write(const uint16_t pio, const uint8_t byte, bool peek) {
                 asic.shipModeEnabled = true;
                 control.ports[0] |= 0x40; // Turn calc off
                 cpuEvents |= EVENT_RESET;
+                gui_console_printf("[CEmu] Reset caused by entering sleep mode.\n", cpu.registers.PC);
+#ifdef DEBUG_SUPPORT
+                if (debugger.resetOpensDebugger) {
+                    open_debugger(DBG_MISC_RESET, cpu.registers.PC);
+                }
+#endif
             }
             break;
         case 0x0A:

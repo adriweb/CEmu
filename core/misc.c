@@ -20,12 +20,17 @@ static void watchdog_event(int index) {
     if (watchdog.control & 1) {
         watchdog.status = 1;
         if (watchdog.control & 2) {
-            gui_console_printf("[CEmu] Watchdog reset triggered.\n");
+            gui_console_printf("[CEmu] Reset triggered by watchdog timer.\n");
             cpuEvents |= EVENT_RESET;
+#ifdef DEBUG_SUPPORT
+            if (debugger.resetOpensDebugger) {
+                open_debugger(DBG_WATCHDOG_TIMEOUT, cpu.registers.PC);
+            }
+#endif
         }
         if (watchdog.control & 4) {
-            cpu_nmi();
             gui_console_printf("[CEmu] Watchdog NMI triggered.\n");
+            cpu_nmi();
         }
         event_repeat(index, watchdog.load);
     }
@@ -70,11 +75,11 @@ static uint8_t watchdog_read(const uint16_t pio, bool peek) {
 }
 
 /* Watchdog write routine */
-static void watchdog_write(const uint16_t pio, const uint8_t byte, bool peek) {
+static void watchdog_write(const uint16_t pio, const uint8_t byte, bool poke) {
     uint8_t index = pio;
     uint8_t bit_offset = (index & 3) << 3;
 
-    (void)peek;
+    (void)poke;
 
     switch (index) {
         case 0x004: case 0x005: case 0x006: case 0x007:
@@ -167,8 +172,8 @@ static uint8_t protected_read(const uint16_t pio, bool peek) {
 }
 
 /* Write to the 0x9XXX range of ports */
-static void protected_write(const uint16_t pio, const uint8_t byte, bool peek) {
-    (void)peek;
+static void protected_write(const uint16_t pio, const uint8_t byte, bool poke) {
+    (void)poke;
 
     switch (pio) {
         case 0xB00:
@@ -211,8 +216,8 @@ static uint8_t cxxx_read(const uint16_t pio, bool peek) {
 }
 
 /* Write to the 0xCXXX range of ports */
-static void cxxx_write(const uint16_t pio, const uint8_t byte, bool peek) {
-    (void)peek;
+static void cxxx_write(const uint16_t pio, const uint8_t byte, bool poke) {
+    (void)poke;
     cxxx.ports[pio] = byte;
 }
 
@@ -242,16 +247,16 @@ bool cxxx_restore(const emu_image *s) {
 
 /* Read from the 0xDXXX range of ports */
 static uint8_t dxxx_read(const uint16_t pio, bool peek) {
-    (void)peek;
     (void)pio; /* Uncomment me when needed */
+    (void)peek;
     return 0;
 }
 
 /* Write to the 0xDXXX range of ports */
-static void dxxx_write(const uint16_t pio, const uint8_t byte, bool peek) {
-    (void)peek;
+static void dxxx_write(const uint16_t pio, const uint8_t byte, bool poke) {
     (void)pio;  /* Uncomment me when needed */
     (void)byte; /* Uncomment me when needed */
+    (void)poke;
     return;
 }
 
@@ -294,8 +299,8 @@ static uint8_t exxx_read(const uint16_t pio, bool peek) {
 }
 
 /* Write to the 0xEXXX range of ports */
-static void exxx_write(const uint16_t pio, const uint8_t byte, bool peek) {
-    (void)peek;
+static void exxx_write(const uint16_t pio, const uint8_t byte, bool poke) {
+    (void)poke;
     exxx.ports[pio & 0x7F] = byte;
 }
 
@@ -322,8 +327,8 @@ bool exxx_restore(const emu_image *s) {
 /* ============================================= */
 
 /* Write to the 0xFXXX range of ports */
-static void fxxx_write(const uint16_t pio, const uint8_t value, bool peek) {
-    (void)peek;
+static void fxxx_write(const uint16_t pio, const uint8_t value, bool poke) {
+    (void)poke;
     /* 0xFFE appears to dump the contents of flash. Probably not a good thing to print to a console :) */
     if (pio != 0xFFF) {
         return;
@@ -341,8 +346,8 @@ static void fxxx_write(const uint16_t pio, const uint8_t value, bool peek) {
 
 /* Read from the 0xFXXX range of ports */
 static uint8_t fxxx_read(const uint16_t pio, bool peek) {
-    (void)peek;
     (void)pio; /* Uncomment me when needed */
+    (void)peek;
     return 0;
 }
 

@@ -6,7 +6,7 @@
 
 #include <QtWidgets/QWidget>
 
-enum keypad_colors { KEYPAD_BLACK=0, KEYPAD_WHITE, KEYPAD_TRUE_BLUE, KEYPAD_DENIM, KEYPAD_SILVER, KEYPAD_PINK, KEYPAD_PLUM, KEYPAD_RED, KEYPAD_LIGHTNING, KEYPAD_GOLDEN};
+enum keypad_colors { KEYPAD_BLACK=0, KEYPAD_WHITE, KEYPAD_TRUE_BLUE, KEYPAD_DENIM, KEYPAD_SILVER, KEYPAD_PINK, KEYPAD_PLUM, KEYPAD_RED, KEYPAD_LIGHTNING, KEYPAD_GOLDEN, KEYPAD_SPACEGREY, KEYPAD_CORAL, KEYPAD_MINT};
 
 class KeypadWidget : public QWidget {
     Q_OBJECT
@@ -15,8 +15,11 @@ public:
     explicit KeypadWidget(QWidget *parent = Q_NULLPTR) : QWidget{parent}, m_keys{} { }
     virtual ~KeypadWidget();
 
-    void setType(bool, unsigned);
+    void setType(bool, unsigned int);
     unsigned getCurrColor(void);
+
+signals:
+    void keyPressed(QString key);
 
 public slots:
     void changeKeyState(KeyCode keycode, bool press, bool toggleHold = false);
@@ -38,6 +41,8 @@ private:
     QLinearGradient m_background;
     QTransform m_transform, m_inverseTransform;
     Key *m_keys[s_rows][s_cols];
+    int embed_font_id = -2;
+    QColor c_center, c_sides, c_num, c_text, c_other, c_graph;
 };
 
 #endif

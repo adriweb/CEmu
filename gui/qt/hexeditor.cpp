@@ -30,10 +30,24 @@
 
 QString MainWindow::getAddressString(QString string, bool *ok) {
     QString address = QInputDialog::getText(this, tr("Goto Address"),
-                                         tr("Input Address (In Hexadecimal):"), QLineEdit::Normal,
+                                         tr("Input Address:"), QLineEdit::Normal,
                                          string, ok).toUpper();
 
+    QString exists = getAddressEquate(address.toStdString());
+    if (!exists.isEmpty()) {
+        return exists;
+    }
+
    return int2hex(hex2int(address), 6);
+}
+
+QString MainWindow::getAddressEquate(const std::string &in) {
+    QString value;
+    map_value_t::const_iterator item = disasm.reverseMap.find(in);
+    if (item != disasm.reverseMap.end()) {
+        value = int2hex(item->second, 6);
+    }
+    return value;
 }
 
 void MainWindow::flashUpdate() {
@@ -87,22 +101,17 @@ void MainWindow::memUpdate(uint32_t addressBegin) {
 }
 
 void MainWindow::searchEdit(QHexEdit *editor) {
-    SearchWidget search;
-    search.setSearchString(searchingString);
-    search.setInputMode(hexSearch);
-
+    SearchWidget search(searchingString, hexSearch);
+    int searchMode, err = 0;
     search.show();
-    search.exec();
 
-    hexSearch = search.getInputMode();
+    if (!((searchMode = search.exec()) > SEARCH_CANCEL)) { return; }
+
+    hexSearch = search.getType();
     searchingString = search.getSearchString();
 
-    if (!search.getStatus()) {
-        return;
-    }
-
     QString searchString;
-    if (hexSearch == true) {
+    if (hexSearch == SEARCH_MODE_HEX) {
         searchString = searchingString;
     } else {
         searchString = QString::fromStdString(searchingString.toLatin1().toHex().toStdString());
@@ -110,22 +119,31 @@ void MainWindow::searchEdit(QHexEdit *editor) {
 
     editor->setFocus();
     std::string s = searchString.toUpper().toStdString();
-    if (searchString.isEmpty()) {
-        return;
-    }
-    if ((searchString.length() & 1) || s.find_first_not_of("0123456789ABCDEF") != std::string::npos) {
+    if (searchString.isEmpty() || (searchString.length() & 1) || s.find_first_not_of("0123456789ABCDEF") != std::string::npos) {
         QMessageBox::warning(this, tr("Error"), tr("Error when reading input string"));
         return;
     }
 
-    QByteArray string_int;
-    for (int i = 0; i<searchString.length(); i += 2) {
-        QString a = searchString.at(i);
-        a.append(searchString.at(i+1));
-        string_int.append(hex2int(a));
+    QByteArray string_int = QByteArray::fromHex(searchString.toLatin1());
+
+    switch (searchMode) {
+        case SEARCH_NEXT_NOT:
+            err = editor->indexNotOf(string_int, editor->cursorPosition());
+            break;
+        case SEARCH_PREV:
+            err = editor->indexPrevOf(string_int, editor->cursorPosition());
+            break;
+        case SEARCH_PREV_NOT:
+            err = editor->indexPrevNotOf(string_int, editor->cursorPosition());
+            break;
+        case SEARCH_NEXT:
+        default:
+            err = editor->indexOf(string_int, editor->cursorPosition());
+            break;
     }
-    if (editor->indexOf(string_int, editor->cursorPosition()) == -1) {
-        QMessageBox::warning(this, tr("Not Found"), tr("Hex string not found."));
+
+    if (err == -1) {
+         QMessageBox::warning(this, tr("Not Found"), tr("String not found."));
     }
 }
 
@@ -134,7 +152,7 @@ void MainWindow::flashSearchPressed() {
 }
 
 void MainWindow::flashGotoPressed() {
-    bool accept;
+    bool accept = false;
     QString addressStr = getAddressString(prevFlashAddress, &accept);
 
     if (accept) {
@@ -157,7 +175,7 @@ void MainWindow::ramSearchPressed() {
 }
 
 void MainWindow::ramGotoPressed() {
-    bool accept;
+    bool accept = false;
     QString addressStr = getAddressString(prevRAMAddress, &accept);
 
     if (accept) {
@@ -188,7 +206,7 @@ void MainWindow::memGoto(QString addressStr) {
 
     if (!inDebugger) {
         debuggerRaise();
-        guiDelay(100);
+        guiDelay(200);
     }
 
     QByteArray mem_data;
@@ -210,7 +228,7 @@ void MainWindow::memGoto(QString addressStr) {
 }
 
 void MainWindow::memGotoPressed() {
-    bool accept;
+    bool accept = false;
     QString address = getAddressString(prevMemAddress, &accept);
 
     if (accept) {
@@ -243,6 +261,7 @@ void MainWindow::memSyncPressed() {
 
     for (int i = 0; i < memSize; i++) {
         mem_poke_byte(i+start, ui->memEdit->data().at(i));
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
     }
 
     syncHexView(posa, ui->memEdit);

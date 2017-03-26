@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include <QtWidgets/QProgressBar>
 #include <QtWidgets/QShortcut>
 #include <QtWidgets/QMainWindow>
 #include <QtWidgets/QLabel>
@@ -8,12 +9,16 @@
 #include <QtWidgets/QFileDialog>
 #include <QtCore/QSettings>
 #include <QtGui/QTextCursor>
+#include <QtWidgets/QMessageBox>
 
+#include "ipc.h"
+#include "searchwidget.h"
 #include "cemuopts.h"
 #include "lcdwidget.h"
 #include "romselection.h"
 #include "emuthread.h"
 #include "lcdpopout.h"
+#include "keyhistory.h"
 #include "keypad/qtkeypadbridge.h"
 #include "qhexedit/qhexedit.h"
 
@@ -29,23 +34,20 @@ class MainWindow : public QMainWindow {
 public:
     explicit MainWindow(CEmuOpts opts,QWidget *p = Q_NULLPTR);
     ~MainWindow();
+    bool IsInitialized();
 
 public slots:
-    // Misc.
-    virtual void closeEvent(QCloseEvent*) Q_DECL_OVERRIDE;
-
-    // Drag & Drop
-    virtual void dropEvent(QDropEvent*) Q_DECL_OVERRIDE;
-    virtual void dragEnterEvent(QDragEnterEvent*) Q_DECL_OVERRIDE;
-
     // Console
-    void consoleStr(QString);
-    void consoleErrStr(QString);
+    void consoleStr(const QString&);
+    void consoleErrStr(const QString&);
 
     // Saved/Restored State
     void saved(bool);
     void started(bool);
     void restored(bool);
+
+    // ROM Image setting
+    void setRom(const QString&);
 
     // Other
     void isBusy(bool busy);
@@ -90,6 +92,16 @@ signals:
     // Reset
     void resetTriggered();
 
+protected:
+    // Misc.
+    virtual void closeEvent(QCloseEvent*) Q_DECL_OVERRIDE;
+    virtual bool eventFilter(QObject*, QEvent*) Q_DECL_OVERRIDE;
+    virtual void showEvent(QShowEvent *event) Q_DECL_OVERRIDE;
+
+    // Drag & Drop
+    virtual void dropEvent(QDropEvent*) Q_DECL_OVERRIDE;
+    virtual void dragEnterEvent(QDragEnterEvent*) Q_DECL_OVERRIDE;
+
 private:
     enum breakpointIndex {
         BREAK_LABEL_LOC=0,
@@ -114,6 +126,13 @@ private:
         PORT_FREEZE_LOC
     };
 
+    enum varIndex {
+        VAR_NAME=0,
+        VAR_TYPE,
+        VAR_SIZE,
+        VAR_PREVIEW
+    };
+
     // Save/Restore
     void saveToPath(QString path);
     bool restoreFromPath(QString path);
@@ -135,6 +154,7 @@ private:
     void changeSnapshotPath();
 
     // Debugger
+    void debuggerInstall();
     void breakpointGUIAdd();
     void watchpointGUIAdd();
     void debuggerGUIPopulate();
@@ -180,11 +200,17 @@ private:
     void vatContextMenu(const QPoint &);
     void opContextMenu(const QPoint &);
 
+    void setDebugResetTrigger(bool);
+    void setEnableSoftCommands(bool);
+
     void breakpointRemoveAddress(uint32_t);
     void watchpointRemoveAddress(uint32_t);
 
     void debuggerZeroClockCounter();
     void debuggerTabSwitched(int);
+
+    void setDataCol(bool state);
+    void setMenuBarState(bool state);
 
     // For linking to the buttons
     void breakpointSlotAdd();
@@ -211,18 +237,26 @@ private:
     void debuggerImport();
     void debuggerExport();
 
-    // MAIN IMPLEMENTATION ROUTINES
-    bool portAdd(uint16_t, unsigned);
-    bool breakpointAdd(QString, uint32_t, bool);
-    bool watchpointAdd(QString, uint32_t, uint8_t, unsigned);
+    // Creating bootable images
+    bool checkForCEmuBootImage();
+    void exportCEmuBootImage();
+    bool loadCEmuBootImage(const QString&);
+    void resetSettingsIfLoadedCEmuBootableImage();
 
-    void screenContextMenu(const QPoint &);
+    // MAIN IMPLEMENTATION ROUTINES
+    bool portAdd(uint16_t, unsigned int);
+    bool breakpointAdd(QString, uint32_t, bool);
+    bool watchpointAdd(QString, uint32_t, uint8_t, unsigned int);
+
+    void screenContextMenu(const QPoint&);
+    void updateLabels();
     void equatesAddDialog();
-    void equatesAddFile(QString);
+    void equatesAddFile(const QString&);
+    void equatesAddEquate(QString, QString);
     void equatesClear();
     void equatesRefresh();
     void selectKeypadColor();
-    void setKeypadColor(unsigned);
+    void setKeypadColor(unsigned int);
 
     // Speed
     void setEmulatedSpeed(int);
@@ -230,9 +264,9 @@ private:
     void showActualSpeed(int);
 
     // Console
-    void showStatusMsg(QString);
+    void showStatusMsg(const QString&);
     void consoleOutputChanged();
-    void consoleAppend(QString, QColor color = Qt::black);
+    void consoleAppend(const QString&, const QColor &color = Qt::black);
 
     // Settings
     void adjustScreen();
@@ -247,11 +281,10 @@ private:
     void setUIEditMode(bool);
     void toggleUIEditMode(void);
     void setSaveDebug(bool);
-
-    int setReprintScale(int);
+    void saveMiscSettings();
 
     // Linking
-    QStringList showVariableFileDialog(QFileDialog::AcceptMode, QString);
+    QStringList showVariableFileDialog(QFileDialog::AcceptMode, const QString&, const QString&);
     void selectFiles();
     void refreshVariableList();
     void variableClicked(QTableWidgetItem*);
@@ -280,9 +313,11 @@ private:
     void memGotoPressed();
     void memSearchPressed();
     void memSyncPressed();
+
     // Others
     void syncHexView(int, QHexEdit*);
     void searchEdit(QHexEdit*);
+    QString getAddressEquate(const std::string&);
 
     // Keypad
     void keymapChanged();
@@ -297,6 +332,19 @@ private:
 
     // Misc
     QString getAddressString(QString, bool*);
+    void optCheckSend(CEmuOpts&);
+    void optLoadFiles(CEmuOpts&);
+    void optAttemptLoad(CEmuOpts&);
+
+    // Key History
+    void toggleKeyHistory();
+
+    // IPC
+    void ipcSpawnRandom();
+    bool ipcSetup();
+    void ipcReceived();
+    void ipcChangeID();
+    void ipcHandleCommandlineReceive(QDataStream &);
 
 #ifdef _WIN32
     // Win32 Console Toggle
@@ -305,22 +353,22 @@ private:
 #endif
 
     // Members
-    unsigned watchpointGUIMask = DBG_NO_HANDLE;
+    unsigned int watchpointGUIMask = DBG_NO_HANDLE;
     QString searchingString;
 
     Ui::MainWindow *ui = Q_NULLPTR;
-    QtKeypadBridge keypadBridge{this};
-    QLabel statusLabel;
+    QLabel speedLabel;
+    QLabel msgLabel;
     QSettings *settings = Q_NULLPTR;
-    QDockWidget *debuggerDock = Q_NULLPTR;
     QTextCursor disasmOffset;
     bool disasmOffsetSet;
     bool fromPane;
     int32_t addressPane;
     int memSize;
+    int hexSearch = SEARCH_MODE_HEX;
 
     QDir currentDir;
-    QString currentEquateFile;
+    QStringList currentEquateFiles;
     EmuThread emu;
 
     bool uiEditMode;
@@ -328,9 +376,12 @@ private:
     bool nativeConsole = false;
     bool closeAfterSave = false;
     bool isResumed = false;
-    bool hexSearch = true;
     bool canScroll = false;
     bool usingLoadedImage = false;
+    bool recordingGif = false;
+
+    bool firstTimeShown = false;
+
     CEmuOpts opts;
 
     uint32_t prevBreakpointAddress = 0;
@@ -345,10 +396,10 @@ private:
     QShortcut *stepOutShortcut;
     QShortcut *debuggerShortcut;
     QShortcut *asmShortcut;
+    QShortcut *gifShortcut;
 
     QAction *toggleAction;
 
-    QList<calc_var_t> vars;
     QIcon runIcon, stopIcon; // help speed up stepping
     QTextCharFormat consoleFormat;
 
@@ -358,6 +409,72 @@ private:
     QString prevMemAddress;
 
     QString pathSettings;
+    QMenu *docksMenu;
+
+    KeyHistory *keyHistoryWindow = Q_NULLPTR;
+
+    ipc *com;
+
+    // for drag and drop of rom files
+    bool isSendingROM = false;
+    QString dragROM;
+
+    bool initPassed = true;
+    bool enabledSoftCommands;
+
+    bool firstShow = false;
+    bool useDataCol;
+    bool loadedCEmuBootImage = false;
+    static const int WindowStateVersion = 0;
+
+    // Settings definitions
+
+    static const QString SETTING_DEBUGGER_TEXT_SIZE;
+    static const QString SETTING_DEBUGGER_ADD_DISASM_SPACE;
+    static const QString SETTING_DEBUGGER_RESTORE_ON_OPEN;
+    static const QString SETTING_DEBUGGER_SAVE_ON_CLOSE;
+    static const QString SETTING_DEBUGGER_RESET_OPENS;
+    static const QString SETTING_DEBUGGER_ENABLE_SOFT;
+    static const QString SETTING_DEBUGGER_DATA_COL;
+    static const QString SETTING_DEBUGGER_IMAGE_PATH;
+    static const QString SETTING_DEBUGGER_FLASH_BYTES;
+    static const QString SETTING_DEBUGGER_RAM_BYTES;
+    static const QString SETTING_DEBUGGER_MEM_BYTES;
+    static const QString SETTING_SCREEN_REFRESH_RATE;
+    static const QString SETTING_SCREEN_SCALE;
+    static const QString SETTING_SCREEN_SKIN;
+    static const QString SETTING_KEYPAD_KEYMAP;
+    static const QString SETTING_KEYPAD_COLOR;
+    static const QString SETTING_WINDOW_SIZE;
+    static const QString SETTING_WINDOW_STATE;
+    static const QString SETTING_WINDOW_GEOMETRY;
+    static const QString SETTING_CAPTURE_FRAMESKIP;
+    static const QString SETTING_IMAGE_PATH;
+    static const QString SETTING_ROM_PATH;
+    static const QString SETTING_FIRST_RUN;
+    static const QString SETTING_UI_EDIT_MODE;
+    static const QString SETTING_SAVE_ON_CLOSE;
+    static const QString SETTING_RESTORE_ON_OPEN;
+    static const QString SETTING_EMUSPEED;
+    static const QString SETTING_AUTOUPDATE;
+    static const QString SETTING_DISABLE_MENUBAR;
+    static const QString SETTING_ALWAYS_ON_TOP;
+    static const QString SETTING_CURRENT_DIR;
+    static const QString SETTING_ENABLE_WIN_CONSOLE;
+
+    static const QString SETTING_KEYPAD_CEMU;
+    static const QString SETTING_KEYPAD_TILEM;
+    static const QString SETTING_KEYPAD_WABBITEMU;
+    static const QString SETTING_KEYPAD_JSTIFIED;
+
+    static const QString SETTING_DEFAULT_FILE;
+    static const QString SETTING_DEFAULT_ROM_FILE;
+    static const QString SETTING_DEFAULT_IMAGE_FILE;
+    static const QString SETTING_DEFAULT_DEBUG_FILE;
+
+    QMessageBox *infoBox = Q_NULLPTR;
+    QMessageBox *warnBox = Q_NULLPTR;
+    QProgressBar *progressBar;
 };
 
 #endif
