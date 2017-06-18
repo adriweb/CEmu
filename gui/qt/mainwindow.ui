@@ -2358,6 +2358,9 @@ QPushButton:pressed {
             </item>
             <item>
              <widget class="DataWidget" name="disassemblyView">
+              <property name="visible">
+               <bool>false</bool>
+              </property>
               <property name="mouseTracking">
                <bool>false</bool>
               </property>
@@ -2390,6 +2393,10 @@ QPushButton:pressed {
               </property>
              </widget>
             </item>
+	    <item>
+             <widget class="DisasmWidget" name="disasm">
+             </widget>
+	    </item>
            </layout>
           </widget>
           <widget class="QWidget" name="breaktab">
@@ -8448,7 +8455,11 @@ QPushButton:pressed {
    <class>KeypadWidget</class>
    <extends>QWidget</extends>
    <header>keypad/keypadwidget.h</header>
-   <container>1</container>
+  </customwidget>
+  <customwidget>
+    <class>DisasmWidget</class>
+    <extends>QWidget</extends>
+    <header>debugger/disasmwidget.h</header>
   </customwidget>
   <customwidget>
    <class>DataWidget</class>

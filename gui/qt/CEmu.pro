@@ -86,6 +86,7 @@ SOURCES +=  utils.cpp \
     keypad/keypadwidget.cpp \
     keypad/rectkey.cpp \
     keypad/arrowkey.cpp \
+    debugger/disasmwidget.cpp \
     qhexedit/chunks.cpp \
     qhexedit/commands.cpp \
     qhexedit/qhexedit.cpp \
@@ -172,6 +173,7 @@ HEADERS  +=  utils.h \
     keypad/numkey.h \
     keypad/operkey.h \
     keypad/arrowkey.h \
+    debugger/disasmwidget.h \
     qhexedit/chunks.h \
     qhexedit/commands.h \
     qhexedit/qhexedit.h \
