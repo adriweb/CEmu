@@ -1,4 +1,5 @@
 #include <QtWidgets/QToolTip>
+#include <QtCore/QDateTime>
 #include <QtCore/QFileInfo>
 #include <QtCore/QRegularExpression>
 #include <QtNetwork/QNetworkAccessManager>
@@ -689,6 +690,11 @@ void MainWindow::debuggerGUIPopulate() {
 void MainWindow::debuggerZeroClockCounter() {
     debugger.totalCycles = 0;
     ui->cycleView->setText("0");
+}
+
+void MainWindow::syncHostClockToEmu() {
+    QDateTime currDateTime = QDateTime::currentDateTime();
+    // Write stuff to rtc.writeDay etc... or use the dedicated USB functinos to do so whenever they're ready
 }
 
 // ------------------------------------------------

@@ -208,6 +208,8 @@ private:
     void debuggerZeroClockCounter();
     void debuggerTabSwitched(int);
 
+    void syncHostClockToEmu();
+
     void setDataCol(bool state);
     void setMenuBarState(bool state);
 
